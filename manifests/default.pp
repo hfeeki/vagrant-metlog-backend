@@ -326,9 +326,9 @@ file {
         group   => 'root',
         mode    => 755,
         force   => true;
-    '/etc/init/carbon':
+    '/etc/init/carbon.conf':
         ensure  => present,
-        path    => "/etc/init/carbon",
+        path    => "/etc/init/carbon.conf",
         source  => "/vagrant/files/startup/carbon.conf",
         owner   => 'root',
         group   => 'root',
@@ -386,7 +386,7 @@ exec {
         require     => File["statsd_init"];
     'carbon_up':
         command     => "/sbin/initctl start carbon",
-        require     => File["statsd_init"];
+        require     => File["/etc/init/carbon.conf"];
     'iptables_down':
         command     => "/usr/local/bin/iptables_flush",
         require     => File["firewall_down"];
@@ -411,7 +411,7 @@ Exec["start_logstash"] ->
 Exec["init_whisperdb"] ->
 File["/etc/init/pencil.conf"] ->
 File["statsd_init"] ->
-File["/etc/init/carbon"] ->
+File["/etc/init/carbon.conf"] ->
 Exec["iptables_down"] ->
 Exec["restart_apache"] ->
 Exec["pencil_up"]
