@@ -37,7 +37,7 @@ $moz_packages = [
     'mod_wsgi-3.3-1.el6.x86_64', # RPMS.mozilla
     'gunicorn', # RPMS.mozilla-services (mozilla compiled)
     'logstash', # RPMS.mozilla-services (JAR files + pattern files). Suggest going straight from spec file.
-    'logstash-metlog', # RPMS.mozilla-services (JAR files + pattern files). Suggest going straight from spec file.
+    'logstash-metlog', # RPMS.mozilla-services 
 
     #########################
     #
@@ -169,12 +169,6 @@ file {
         ensure  => present,
         path    => "/etc/logstash.conf",
         source  => "/vagrant/files/logstash.conf";
-    'logstash_plugins':
-        ensure  => directory,
-        path    => "/opt/logstash/plugins",
-        source  => "/vagrant/files/plugins",
-        recurse => true,
-        force   => true;
     'logstash_init':
         ensure  => present,
         path    => "/etc/init/logstash.conf",
@@ -348,7 +342,7 @@ exec {
     'update_init':
         command => "/sbin/initctl reload-configuration",
         subscribe   => File["logstash_init"],
-        require => File["logstash_plugins"];
+        require => Package["logstash-metlog"];
 
     'start_logstash':
         command => "/sbin/initctl start logstash",
@@ -401,12 +395,12 @@ exec {
 
 Package["zeromq"] ->
 Package["logstash"] ->
+Package["logstash-metlog"] ->
 File["wsgi_conf"] ->
 File["carbon_conf"] ->
 File["graphite_wsgi"] ->
 File["logstash.conf"] ->
 File["logstash_init"] ->
-File["logstash_plugins"] ->
 Exec["start_logstash"] ->
 Exec["init_whisperdb"] ->
 File["/etc/init/pencil.conf"] ->
