@@ -1,0 +1,4 @@
+#!/bin/sh
+
+/sbin/iptables -F
+/sbin/service iptables save

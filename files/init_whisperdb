@@ -1,0 +1,4 @@
+#!/bin/sh
+cd /opt/graphite/webapp/graphite
+/usr/bin/python manage.py syncdb
+chown -R apache:apache /opt/graphite/storage
