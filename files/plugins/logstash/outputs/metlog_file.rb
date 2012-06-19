@@ -1,6 +1,7 @@
 require "logstash/namespace"
 require "logstash/outputs/base"
 require "logstash/util/signals"
+require "time"
 
 # File output.
 #
@@ -23,7 +24,10 @@ class LogStash::Outputs::MetlogFile < LogStash::Outputs::Base
   config :format, :validate => :string, :required => true, :default => "json"
 
   # If the output type is 'preformatted_field', we only extract the
+  # one field from the JSON blob
   config :formatted_field, :validate => :string, :default => ""
+
+  config :prefix_timestamps, :validate => :boolean, :default => true
 
   public
   def register
@@ -83,7 +87,6 @@ class LogStash::Outputs::MetlogFile < LogStash::Outputs::Base
                 begin
                     # append to disk as they come in
                     event = @queue.pop
-
                     case @format
                     when "json"
                         data_hash = event.to_hash
@@ -101,9 +104,25 @@ class LogStash::Outputs::MetlogFile < LogStash::Outputs::Base
                         end
                         @logfile.puts(new_map.to_json())
                     when "preformatted_field"
-                        txt = event['fields'][@formatted_field]
+                        obj = event
+                        @formatted_field.split('/').each{ |segment|
+                            if (obj == nil)
+                                # Oops - we ran off the end of the keypath
+                                # Skip to the next item in the event
+                                # loop
+                                next
+                            end
+                            obj = obj[segment]
+                        }
+
+                        txt = obj.to_s
                         if txt
-                            @logfile.puts(txt)
+                            if @prefix_timestamps 
+                                timestamp = Time.now.utc.iso8601 + ' '
+                            else
+                                timestamp = ''
+                            end if
+                            @logfile.puts("#{timestamp}#{txt}")
                         end
                     end
 

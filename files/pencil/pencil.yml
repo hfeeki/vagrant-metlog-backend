@@ -1,6 +1,6 @@
 ---
 :config:
-  :graphite_url: http://graphite-global.phx.weave.mozilla.com
+  :graphite_url: http://192.168.20.2/
   :default_colors:
     ["blue", "green", "yellow", "red", "purple", "brown", "aqua", "gold"]
   :url_opts:
@@ -21,4 +21,4 @@
   :now_threshold: 300 # Time.at(Time.now - now_threshold) considered Time.now
 
   # set this if you have a new graphite that supports color(series, "color")
-  # :use_color: true
+  :use_color: true

@@ -1,94 +1,150 @@
 Exec { path => '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/opt/ruby/bin/' }
 
 # Mozilla packages to install
-$moz_packages = ['createrepo','nginx','gunicorn','logstash','python26','python26-setuptools','python-devel','rubygem-petef-statsd','rpm-devel','rpm-python','rpmdevtools','zeromq','whisper','rubygem-pencil','graphite-web','carbon','django-tagging','httpd','python-twisted','mod_wsgi-3.3-1.el6.x86_64','bitmap-fonts-compat'] 
 
-yumrepo {
-    'packages-all':
-        descr       => "CentOS All",
-        baseurl     => 'http://mrepo.mozilla.org/mrepo/$releasever-$basearch/RPMS.all',
-        enabled     => 1,
-        gpgcheck    => 0;
-    'mozilla-services':
-        descr       => "Mozilla Services Repo",
-        baseurl     => 'http://mrepo.mozilla.org/mrepo/$releasever-$basearch/RPMS.mozilla-services',
-        enabled     => 1,
-        gpgcheck    => 0;
-    'packages-mozilla':
-        descr       => "Mozilla Packages Repo",
-        baseurl     => 'http://mrepo.mozilla.org/mrepo/$releasever-$basearch/RPMS.mozilla',
-        enabled     => 1,
-        gpgcheck    => 0;
-    'packages-centos-base':
-        descr       => "CentOS Base",
-        baseurl     => 'http://mrepo.mozilla.org/mrepo/$releasever-$basearch/RPMS.centos-base',
-        enabled     => 1,
-        gpgcheck    => 0;
-}
+$baserepo_packages = ['createrepo']
+
+$centos_packages = [
+    'python-devel',
+    'rpm-devel',
+    'rpm-python',
+    'rpmdevtools',
+    'httpd',
+    'python-simplejson',
+    'python-twisted',
+    'bitmap-fonts-compat',
+]
+
+$moz_packages = [
+    'zeromq', # RPMS.mozilla-services
+    'whisper', # RPMS.mozilla-services
+    'graphite-web', # RPMS.mozilla-services
+    'carbon', # RPMS.mozilla-services
+    'nginx',    # RPMS.mozilla-services
+
+    #######
+    #
+    #   Pure python 
+    #
+    'python26', # RPMS.mozilla-services 
+    'python26-setuptools', # RPMS.mozilla-services
+                           # Just a metapackage with no files.  Forces
+                           # install of 
+                           #  python-setuptools  
+                           #  rpmlib(PayloadFilesHavePrefix) <= 4.0-1
+                           #  rpmlib(CompressedFileNames) <= 3.0.4-1
+
+    'mod_wsgi-3.3-1.el6.x86_64', # RPMS.mozilla
+    'gunicorn', # RPMS.mozilla-services (mozilla compiled)
+    'logstash', # RPMS.mozilla-services (JAR files + pattern files). Suggest going straight from spec file.
+    'logstash-metlog', # RPMS.mozilla-services (JAR files + pattern files). Suggest going straight from spec file.
+
+    #########################
+    #
+    #   Pure Ruby and pure Python bits
+    #   below
+
+    'rubygem-pencil', # RPMS.mozilla-services
+    'rubygem-tilt',  # RPMS.mozilla-services
+    'rubygem-petef-statsd', # RPMS.mozilla-services
+]
+
+# These come from a signed Fedora 6 EPEL repository
+$django_epel = ['Django','django-tagging']
+
+# You better have the real JRE installed - not some weird GCJ
+# contraption
+$logstash_epel = ['java-1.6.0-sun-1.6.0.22-1jpp.1.el6.x86_64']
 
 package { 
-    $moz_packages:
-        ensure  => present,
-        require => [Host["mrepo"], 
-                    Yumrepo['packages-all'],
-                    Yumrepo['mozilla-services'],
-                    Yumrepo['packages-mozilla'],
-                    Yumrepo['packages-centos-base']];
+    $baserepo_packages:
+        ensure  => present;
+
+    # From CentOS Base
+    $centos_packages:
+        ensure => present;
+    # From CentOS Base
     'cairo-1.8.8-3.1.el6.x86_64':
-        ensure  => present,
-        require => [Host["mrepo"], 
-                    Yumrepo['packages-all']];
+        ensure  => present;
+    # From CentOS Base
     'pycairo-1.8.6-2.1.el6.x86_64':
         ensure  => present,
-        require => [Host["mrepo"], 
-                    Package["cairo-1.8.8-3.1.el6.x86_64"],
-                    Yumrepo['packages-all']];
+        require => [Package["cairo-1.8.8-3.1.el6.x86_64"]];
 
-}
+    $django_epel:
+        ensure => present,
+        require => [Yumrepo['epel6_rpms']];
 
-# From remote, one of the mrepo's doesn't work, so we hardcode in the
-# one that
-# does work reliably over the VPN
-host { 'mrepo':
-    ensure => present,
-    name => "mrepo.mozilla.org",
-    ip => "63.245.217.47",
+    $logstash_epel:
+        ensure => present,
+        require => [Yumrepo['epel6_rpms']];
+
+    # We want to install the mozilla specific RPMs only *after* all
+    # the raw dependencies have been sorted out
+    $moz_packages:
+        ensure  => present,
+        require => [Yumrepo['local-rpms'], Package[$logstash_epel]];
+
 }
 
 ## Local RPM Repo
 
 yumrepo {
-    'local-rpms':
-        descr       => "Local RPMs",
-        baseurl     => 'file:///local_repo/',
+    'epel6_rpms':
+        descr       => "Local EPEL RPMs",
+        baseurl     => 'http://people.mozilla.com/~vng/vagrant_mrepo/epel6/$releasever/$basearch',
         enabled     => 1,
-        gpgcheck    => 0,
+        gpgcheck    => 0;
+    'local-rpms':
+        descr       => "Mozilla Services Repo",
+        baseurl     => 'http://people.mozilla.com/~vng/vagrant_mrepo/moz/$releasever/$basearch',
+        enabled     => 1,
+        gpgcheck    => 0;
 }
 
-file {
-    'local_repo':
-        ensure  => directory,
-        recurse => true,
-        path    => "/local_repo",
-        source  => "/vagrant/local_repo",
-}
 
 exec {
     'update_repo':
-        command     => "createrepo /local_repo",
-        subscribe   =>  File["local_repo"];
+       command     => "createrepo /local_repo/moz";
+    'update_epel6_repo':
+       command     => "createrepo /local_repo/epel6";
     'clear_metadata':
         command     => "yum clean metadata",
-        subscribe   => File["local_repo"];
+        subscribe   => [File["/local_repo"], 
+                       File["/local_repo/moz"],
+                       File["/local_repo/epel6"]];
 }
 
 
 # Make sure not to install the yum repo until its completely ready
-Package["createrepo"] -> File["local_repo"] -> Exec["update_repo"] -> Yumrepo['local-rpms']
+Package["createrepo"] -> 
+File["/local_repo"] -> 
+File["/local_repo/moz"] -> 
+File["/local_repo/epel6"] -> 
+Exec["update_repo"] -> 
+Exec["update_epel6_repo"] -> 
+Yumrepo['local-rpms'] ->
+Yumrepo['epel6_rpms']
 
 ## Nginx Setup
 
 file {
+    '/local_repo':
+        ensure  => directory,
+        recurse => true,
+        path    => "/local_repo",
+        source  => "/vagrant/local_repo";
+    '/local_repo/moz':
+        ensure  => directory,
+        recurse => true,
+        path    => "/local_repo/moz",
+        source  => "/vagrant/local_repo/moz",
+        require => File["/local_repo"];
+    '/local_repo/epel6':
+        ensure  => directory,
+        recurse => true,
+        path    => "/local_repo/epel6",
+        source  => "/vagrant/local_repo/epel6";
     'nginx.conf':
         ensure  => present,
         path    => "/etc/nginx/nginx.conf",
@@ -164,7 +220,21 @@ file {
         group  => "root",
         mode   => 644;
     
+    "/opt":
+        ensure => "directory",
+        owner  => "root",
+        group  => "root",
+        mode   => 644;
+
+    "/opt/graphite":
+        require => [File["/opt"]],
+        ensure => "directory",
+        owner  => "root",
+        group  => "root",
+        mode   => 644;
+
     "/opt/graphite/conf":
+        require => [Package["graphite-web"], File["/opt/graphite"]],
         ensure => "directory",
         owner  => "root",
         group  => "root",
@@ -174,6 +244,14 @@ file {
         ensure => present,
         path   => "/opt/graphite/conf/carbon.conf",
         source => "/vagrant/files/graphite/carbon.conf",
+        owner  => "root",
+        group  => "root",
+        require => File["/opt/graphite/conf"],
+        mode   => 644;
+    'storageaggregation_conf':
+        ensure => present,
+        path   => "/opt/graphite/conf/storage-aggregation.conf",
+        source => "/vagrant/files/graphite/storage-aggregation.conf",
         owner  => "root",
         group  => "root",
         require => File["/opt/graphite/conf"],
@@ -211,7 +289,7 @@ file {
         require => File["/opt/pencil"],
         mode    => 644;
 
-    'pencil_graphs_yml':
+    '/opt/pencil/config/graphs.yml':
         ensure => present,
         path   => "/opt/pencil/config/graphs.yml",
         source => "/vagrant/files/pencil/graphs.yml",
@@ -219,7 +297,7 @@ file {
         group  => "root",
         require => File["/opt/pencil/config"],
         mode   => 755;
-    'pencil_dashboards_yml':
+    '/opt/pencil/config/dashboards.yml':
         ensure => present,
         path   => "/opt/pencil/config/dashboards.yml",
         source => "/vagrant/files/pencil/dashboards.yml",
@@ -227,7 +305,7 @@ file {
         group  => "root",
         require => File["/opt/pencil/config"],
         mode   => 755;
-    'pencil_pencil_yml':
+    '/opt/pencil/config/pencil.yml':
         ensure => present,
         path   => "/opt/pencil/config/pencil.yml",
         source => "/vagrant/files/pencil/pencil.yml",
@@ -248,18 +326,18 @@ file {
         group   => 'root',
         mode    => 755,
         force   => true;
-    'carbon_init':
+    '/etc/init/carbon':
         ensure  => present,
-        path    => "/etc/init.d/carbon",
-        source  => "/vagrant/files/startup/carbon",
+        path    => "/etc/init/carbon",
+        source  => "/vagrant/files/startup/carbon.conf",
         owner   => 'root',
         group   => 'root',
         mode    => 755,
         force   => true;
-    'pencil_init':
+    '/etc/init/pencil.conf':
         ensure  => present,
-        path    => "/etc/init.d/pencil",
-        source  => "/vagrant/files/startup/pencil",
+        path    => "/etc/init/pencil.conf",
+        source  => "/vagrant/files/startup/pencil.conf",
         owner   => 'root',
         group   => 'root',
         mode    => 755,
@@ -271,30 +349,43 @@ exec {
         command => "/sbin/initctl reload-configuration",
         subscribe   => File["logstash_init"],
         require => File["logstash_plugins"];
+
     'start_logstash':
         command => "/sbin/initctl start logstash",
         unless  => "/sbin/initctl status logstash | grep -w running";
+
+    'reload_pencil':
+        command     => "/sbin/initctl restart pencil",
+        subscribe   => [File["/opt/pencil/config/graphs.yml"],
+                        File["/opt/pencil/config/dashboards.yml"],
+                        File["/opt/pencil/config/pencil.yml"]],
+        require     => Package["rubygem-pencil"],
+        refreshonly => true;
+
     'reload_logstash':
         command     => "/sbin/initctl restart logstash",
         subscribe   => File["logstash.conf"],
+        require     => Package["logstash"],
         refreshonly => true;
     'pencil_down':
-        command     => "/sbin/service pencil stop",
-        require     => [File["pencil_init"], 
-                        File["pencil_pencil_yml"],
-                        File["pencil_graphs_yml"],
-                        File["pencil_dashboards_yml"]];
+        command     => "/sbin/initctl stop pencil",
+        require     => [Package["rubygem-pencil"],
+                        Package["rubygem-tilt"],
+                        File["/etc/init/pencil.conf"], 
+                        File["/opt/pencil/config/pencil.yml"],
+                        File["/opt/pencil/config/graphs.yml"],
+                        File["/opt/pencil/config/dashboards.yml"]];
     'pencil_up':
-        command     => "/sbin/service pencil start",
-        require     => [File["pencil_init"], 
-                        File["pencil_pencil_yml"],
-                        File["pencil_graphs_yml"],
-                        File["pencil_dashboards_yml"]];
+        command     => "/sbin/initctl start pencil",
+        require     => [File["/etc/init/pencil.conf"], 
+                        File["/opt/pencil/config/pencil.yml"],
+                        File["/opt/pencil/config/graphs.yml"],
+                        File["/opt/pencil/config/dashboards.yml"]];
     'statsd_up':
         command     => "/sbin/service statsd start",
         require     => File["statsd_init"];
     'carbon_up':
-        command     => "/sbin/service carbon start",
+        command     => "/sbin/initctl start carbon",
         require     => File["statsd_init"];
     'iptables_down':
         command     => "/usr/local/bin/iptables_flush",
@@ -304,11 +395,10 @@ exec {
         require     => File["whisperdb_init"];
     'restart_apache':
         command     => "/sbin/service httpd restart",
-        require     => [File["wsgi_conf"], Exec["iptables_down"]];
+        require     => [File["wsgi_conf"], File["graphite_wsgi"], Exec["iptables_down"]];
 }
 
 
-Host["mrepo"] ->
 Package["zeromq"] ->
 Package["logstash"] ->
 File["wsgi_conf"] ->
@@ -319,10 +409,9 @@ File["logstash_init"] ->
 File["logstash_plugins"] ->
 Exec["start_logstash"] ->
 Exec["init_whisperdb"] ->
-File["pencil_init"] ->
+File["/etc/init/pencil.conf"] ->
 File["statsd_init"] ->
-File["carbon_init"] ->
-Exec["pencil_down"] ->
-Exec["pencil_up"] ->
+File["/etc/init/carbon"] ->
 Exec["iptables_down"] ->
-Exec["restart_apache"]
+Exec["restart_apache"] ->
+Exec["pencil_up"]

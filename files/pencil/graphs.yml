@@ -3,23 +3,23 @@
   syncstorage_qps:
     title: "syncstorage qps"
     targets:
-      syncstorage.request_rate.200:
+      stats.syncstorage.request_rate.200:
         :key: 200
         :color: green
-      syncstorage.request_rate.302:
+      stats.syncstorage.request_rate.302:
         :key: 302
         :color: blue
-      syncstorage.request_rate.401:
+      stats.syncstorage.request_rate.401:
         :key: 401
         :color: brown
-      syncstorage.request_rate.404:
+      stats.syncstorage.request_rate.404:
         :key: 404
         :color: purple
-      syncstorage.request_rate.503:
+      stats.syncstorage.request_rate.503:
         :key: 503
         :color: red
     areaMode: stacked
-    hosts: ["sync*_web", "test*_web", "wp-web*"]
+    hosts: ["*"]
 
   syncstorage_401:
     title: "syncstorage 401s"
@@ -27,7 +27,7 @@
       syncstorage.request_rate.401:
         :key: 200
         :color: brown
-    hosts: ["sync*_web", "test*_web", "wp-web*"]
+    hosts: ["*"]
 
   syncstorage_exceptions:
     title: "syncstorage exceptions"
@@ -35,65 +35,7 @@
       syncstorage.log.exception:
         :key: exceptions/s
         :color: red
-    hosts: ["sync*_web", "test*_web", "wp-web*"]
-
-  syncreg_qps:
-    title: "syncreg qps"
-    targets:
-      syncreg.request_rate.200:
-        :key: 200
-        :color: green
-      syncreg.request_rate.302:
-        :key: 302
-        :color: blue
-      syncreg.request_rate.401:
-        :key: 401
-        :color: brown
-      syncreg.request_rate.404:
-        :key: 404
-        :color: purple
-      syncreg.request_rate.503:
-        :key: 503
-        :color: red
-    areaMode: stacked
-    hosts: ["wp-reg*"]
-
-  syncreg_exceptions:
-    title: "syncreg exceptions"
-    targets:
-      syncreg.log.exception:
-        :key: exceptions/s
-        :color: red
-    hosts: ["wp-reg*"]
-
-  syncsreg_qps:
-    title: "syncsreg qps"
-    targets:
-      syncsreg.request_rate.200:
-        :key: 200
-        :color: green
-      syncsreg.request_rate.302:
-        :key: 302
-        :color: blue
-      syncsreg.request_rate.401:
-        :key: 401
-        :color: brown
-      syncsreg.request_rate.404:
-        :key: 404
-        :color: purple
-      syncsreg.request_rate.503:
-        :key: 503
-        :color: red
-    areaMode: stacked
-    hosts: ["wp-sreg*"]
-
-  syncsreg_exceptions:
-    title: "syncsreg exceptions"
-    targets:
-      syncsreg.log.exception:
-        :key: exceptions/s
-        :color: red
-    hosts: ["wp-sreg*"]
+    hosts: ["*"]
 
   cpu_usage:
     title: "cpu usage"
@@ -113,13 +55,6 @@
     areaMode: stacked
     hosts: ["*"]
 
-  load_average:
-    title: "1 minute load average"
-    targets:
-      system.load.1:
-        :key: load
-    hosts: ["*"]
-
   network_traffic:
     title: "network traffic"
     targets:
@@ -132,44 +67,6 @@
 
     hosts: ["*"]
     scale: 8  # bytes -> bits
-
-  ldap_ops:
-    title: "ldap operations"
-    targets:
-      slapd.ops.add:
-        :key: add
-        :color: red
-      slapd.ops.bind:
-        :key: bind
-        :color: brown
-      slapd.ops.modify:
-        :key: modify
-        :color: purple
-      slapd.ops.search:
-        :key: search
-        :color: green
-
-    areaMode: stacked
-    hosts: ["slave*ldap", "master*ldap", "wp-master*"]
-
-  mysql_ops:
-    title: "mysql operations"
-    targets:
-      mysql.ops.delete:
-        :key: delete
-        :color: red
-      mysql.ops.insert:
-        :key: insert
-        :color: brown
-      mysql.ops.update:
-        :key: update
-        :color: purple
-      mysql.ops.select:
-        :key: select
-        :color: green
-
-    areaMode: stacked
-    hosts: ["sync*_db", "wp-db*"]
 
   memory_usage:
     title: "system memory usage"
@@ -192,129 +89,3 @@
  
     scale: 1024 # M -> G
     hosts: ["*"]
-    # some random options for demonstration
-    # template: alphas
-    # bgcolor: "#AFFFFF"
-    # vtitle: tvtnolgrf
-    # lineWidth: 20
-
-  sync_node_alloc:
-    title: "node alloc rate"
-    targets:
-      sync.users.alloc_rate.scl2:
-        :key: scl2 alloc/s
-        :color: green
-      sync.users.alloc_rate.phx1:
-        :key: phx1 alloc/s
-        :color: blue
- 
-    hosts: ["wp-adm01"]
-
-  sync_node_actives:
-    title: "node actives"
-    targets:
-      sync.users.active.scl2:
-        :key: scl2 actives
-        :color: green
-      sync.users.active.phx1:
-        :key: phx1 actives
-        :color: blue
- 
-    hosts: ["wp-adm01"]
-
-  mysql_pending_file_io:
-    title: "mysql pending file i/o"
-    targets:
-      stats.timers.mysql.innodb.pending_read.mean:
-        :key: read
-        :color: green
-      stats.timers.mysql.innodb.pending_write.mean:
-        :key: write
-        :color: blue
-      stats.timers.mysql.innodb.pending_ibuf.mean:
-        :key: ibuf
-        :color: brown
-      stats.timers.mysql.innodb.pending_log.mean:
-        :key: log
-        :color: red
-      stats.timers.mysql.innodb.pending_sync.mean:
-        :key: sync
-        :color: yellow
-
-    hosts: ["wp-db*", "sync*_db"]
-
-  mysql_history_length:
-    title: "mysql transaction history"
-    targets:
-      stats.timers.mysql.innodb.history_length.mean:
-        :key: read
-        :color: green
-
-    hosts: ["wp-db*", "sync*_db"]
-
-  mysql_file_io_threads_usage:
-    title: "mysql file i/o threads active (% used)"
-    targets:
-      ? - stats.timers.mysql.innodb.threads_active_read.mean:
-        - stats.timers.mysql.innodb.threads_total_read.mean:
-      :
-        !omap
-        - :divideSeries:
-        - :color: green
-        - :asPercent: 1.0
-        - :movingAverage: 10
-        - :key: read
-      ? - stats.timers.mysql.innodb.threads_active_write.mean:
-        - stats.timers.mysql.innodb.threads_total_write.mean:
-      :
-        !omap
-        - :divideSeries:
-        - :color: blue
-        - :asPercent: 1.0
-        - :movingAverage: 10
-        - :key: write
-      ? - stats.timers.mysql.innodb.threads_active_ibuf.mean:
-        - stats.timers.mysql.innodb.threads_total_ibuf.mean:
-      :
-        !omap
-        - :divideSeries:
-        - :color: brown
-        - :asPercent: 1.0
-        - :movingAverage: 10
-        - :key: ibuf
-      ? - stats.timers.mysql.innodb.threads_active_log.mean:
-        - stats.timers.mysql.innodb.threads_total_log.mean:
-      :
-        !omap
-        - :divideSeries:
-        - :color: red
-        - :asPercent: 1.0
-        - :movingAverage: 10
-        - :key: log
-    hosts: ["wp-db*", "sync*_db"]
-
-  mysql_file_io_threads:
-    title: "mysql file i/o threads"
-    targets:
-      stats.timers.mysql.innodb.threads_active_read.mean:
-        !omap
-        - :color: green
-        - :movingAverage: 10
-        - :key: read
-      stats.timers.mysql.innodb.threads_active_write.mean:
-        !omap
-        - :color: blue
-        - :movingAverage: 10
-        - :key: write
-      stats.timers.mysql.innodb.threads_active_ibuf.mean:
-        !omap
-        - :color: brown
-        - :movingAverage: 10
-        - :key: ibuf
-      stats.timers.mysql.innodb.threads_active_log.mean:
-        !omap
-        - :color: red
-        - :movingAverage: 10
-        - :key: log
-
-    hosts: ["wp-db*", "sync*_db"]
