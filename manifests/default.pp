@@ -312,7 +312,7 @@ file {
 
 ## startup scripts for statsd, carbon and pencil
 file {
-    'statsd_init':
+    '/etc/init.d/statsd':
         ensure  => present,
         path    => "/etc/init.d/statsd",
         source  => "/vagrant/files/startup/statsd",
@@ -353,7 +353,10 @@ exec {
         subscribe   => [File["/opt/pencil/config/graphs.yml"],
                         File["/opt/pencil/config/dashboards.yml"],
                         File["/opt/pencil/config/pencil.yml"]],
-        require     => Package["rubygem-pencil"],
+        require     => [Package["rubygem-pencil"],Package['rubygem-petef-statsd'],
+                        File['/etc/init/pencil.conf'],
+                        File['/etc/init/carbon.conf'],
+                        File['/etc/init.d/statsd']],
         refreshonly => true;
 
     'reload_logstash':
@@ -377,7 +380,7 @@ exec {
                         File["/opt/pencil/config/dashboards.yml"]];
     'statsd_up':
         command     => "/sbin/service statsd start",
-        require     => File["statsd_init"];
+        require     => File["/etc/init.d/statsd"];
     'carbon_up':
         command     => "/sbin/initctl start carbon",
         require     => File["/etc/init/carbon.conf"];
@@ -404,7 +407,7 @@ File["logstash_init"] ->
 Exec["start_logstash"] ->
 Exec["init_whisperdb"] ->
 File["/etc/init/pencil.conf"] ->
-File["statsd_init"] ->
+File["/etc/init.d/statsd"] ->
 File["/etc/init/carbon.conf"] ->
 Exec["iptables_down"] ->
 Exec["restart_apache"] ->
