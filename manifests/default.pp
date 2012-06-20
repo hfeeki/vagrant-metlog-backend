@@ -83,7 +83,7 @@ package {
     # the raw dependencies have been sorted out
     $moz_packages:
         ensure  => present,
-        require => [Yumrepo['local-rpms'], Package[$logstash_epel]];
+        require => [Yumrepo['moz_rpms'], Package[$logstash_epel]];
 
 }
 
@@ -95,7 +95,7 @@ yumrepo {
         baseurl     => 'http://people.mozilla.com/~vng/vagrant_mrepo/epel6/$releasever/$basearch',
         enabled     => 1,
         gpgcheck    => 0;
-    'local-rpms':
+    'moz_rpms':
         descr       => "Mozilla Services Repo",
         baseurl     => 'http://people.mozilla.com/~vng/vagrant_mrepo/moz/$releasever/$basearch',
         enabled     => 1,
@@ -103,48 +103,15 @@ yumrepo {
 }
 
 
-exec {
-    'update_repo':
-       command     => "createrepo /local_repo/moz";
-    'update_epel6_repo':
-       command     => "createrepo /local_repo/epel6";
-    'clear_metadata':
-        command     => "yum clean metadata",
-        subscribe   => [File["/local_repo"], 
-                       File["/local_repo/moz"],
-                       File["/local_repo/epel6"]];
-}
-
 
 # Make sure not to install the yum repo until its completely ready
 Package["createrepo"] -> 
-File["/local_repo"] -> 
-File["/local_repo/moz"] -> 
-File["/local_repo/epel6"] -> 
-Exec["update_repo"] -> 
-Exec["update_epel6_repo"] -> 
-Yumrepo['local-rpms'] ->
+Yumrepo['moz_rpms'] ->
 Yumrepo['epel6_rpms']
 
 ## Nginx Setup
 
 file {
-    '/local_repo':
-        ensure  => directory,
-        recurse => true,
-        path    => "/local_repo",
-        source  => "/vagrant/local_repo";
-    '/local_repo/moz':
-        ensure  => directory,
-        recurse => true,
-        path    => "/local_repo/moz",
-        source  => "/vagrant/local_repo/moz",
-        require => File["/local_repo"];
-    '/local_repo/epel6':
-        ensure  => directory,
-        recurse => true,
-        path    => "/local_repo/epel6",
-        source  => "/vagrant/local_repo/epel6";
     'nginx.conf':
         ensure  => present,
         path    => "/etc/nginx/nginx.conf",
@@ -364,14 +331,16 @@ exec {
         subscribe   => File["logstash.conf"],
         require     => Package["logstash"],
         refreshonly => true;
-    'pencil_down':
-        command     => "/sbin/initctl stop pencil",
-        require     => [Package["rubygem-pencil"],
-                        Package["rubygem-tilt"],
-                        File["/etc/init/pencil.conf"], 
-                        File["/opt/pencil/config/pencil.yml"],
-                        File["/opt/pencil/config/graphs.yml"],
-                        File["/opt/pencil/config/dashboards.yml"]];
+
+#    'pencil_down':
+#        command     => "/sbin/initctl stop pencil",
+#        require     => [Package["rubygem-pencil"],
+#                        Package["rubygem-tilt"],
+#                        File["/etc/init/pencil.conf"], 
+#                        File["/opt/pencil/config/pencil.yml"],
+#                        File["/opt/pencil/config/graphs.yml"],
+#                        File["/opt/pencil/config/dashboards.yml"]];
+#
     'pencil_up':
         command     => "/sbin/initctl start pencil",
         require     => [File["/etc/init/pencil.conf"], 
