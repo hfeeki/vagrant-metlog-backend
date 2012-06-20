@@ -136,7 +136,7 @@ file {
         ensure  => present,
         path    => "/etc/logstash.conf",
         source  => "/vagrant/files/logstash.conf";
-    'logstash_init':
+    '/etc/init/logstash.conf':
         ensure  => present,
         path    => "/etc/init/logstash.conf",
         source  => "/vagrant/files/logstash.init.conf",
@@ -308,7 +308,7 @@ file {
 exec {
     'update_init':
         command => "/sbin/initctl reload-configuration",
-        subscribe   => File["logstash_init"],
+        subscribe   => File["/etc/init/logstash.conf"],
         require => Package["logstash-metlog"];
 
     'start_logstash':
@@ -329,7 +329,7 @@ exec {
     'reload_logstash':
         command     => "/sbin/initctl restart logstash",
         subscribe   => File["logstash.conf"],
-        require     => Package["logstash"],
+        require     => [Package["logstash"], File['/etc/init/logstash.conf']],
         refreshonly => true;
 
 #    'pencil_down':
@@ -372,7 +372,7 @@ File["wsgi_conf"] ->
 File["carbon_conf"] ->
 File["graphite_wsgi"] ->
 File["logstash.conf"] ->
-File["logstash_init"] ->
+File["/etc/init/logstash.conf"] ->
 Exec["start_logstash"] ->
 Exec["init_whisperdb"] ->
 File["/etc/init/pencil.conf"] ->
