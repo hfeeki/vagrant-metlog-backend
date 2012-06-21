@@ -1,22 +1,17 @@
-====================
-Vagrant CentOS Setup
-====================
+========================================
+Vagrant Metlog back-end test environment
+========================================
 
-This vagrant build is to create a CentOS VM that has the mozilla-services repo's enabled for
-a build environment aiming to be quite similar to production Mozilla Service machines (though
-not exactly as it doesn't use the same service-ops puppet scripts).
+This vagrant build is to create a CentOS VM that has a full Metlog back end
+system (including logstash, ruby-statsd, graphite, pencil, and sentry) for
+development and testing purposes.
 
 Installing
 ==========
 
-**Note**: VirtualBox 4.1.x currently `seems to have a nasty kernel panic issue with Lion <https://www.virtualbox.org/ticket/9359>`_
-, use the second link provided in 2.1 to install the previous version which is stable in OSX Lion.
-
-**VPN Note**: Using the Mozilla repo's requires access to the Mozilla MPT VPN. The connection must be
-active before provisioning the machine. If there's intermittent RPM repo failures, add a line to your
-/etc/hosts file like so::
-
-    63.245.209.182 mrepo.mozilla.org
+**Note**: VirtualBox 4.1.x currently `seems to have a nasty kernel panic issue
+with Lion <https://www.virtualbox.org/ticket/9359>`_ , use the second link
+provided in 2.1 to install the previous version which is stable in OSX Lion.
 
 1. Install Vagrant: http://downloads.vagrantup.com/tags/v1.0.1
 
@@ -30,9 +25,7 @@ active before provisioning the machine. If there's intermittent RPM repo failure
 
 4. Run the following::
 
-       $ mkdir myproj
-       $ curl --silent https://nodeload.github.com/mozilla-services/vagrant-centos/tarball/master | tar zxv --directory=myproj --strip-components=1
-       $ cd myproj
-       $ vim manifests/default.pp  # Edit as needed
+       $ git clone https://github.com/mozilla-services/vagrant-metlog-backend.git
+       $ cd vagrant-metlog-backed
        $ vagrant up
 
