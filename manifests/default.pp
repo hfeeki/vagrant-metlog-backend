@@ -332,15 +332,6 @@ exec {
         require     => [Package["logstash"], File['/etc/init/logstash.conf']],
         refreshonly => true;
 
-#    'pencil_down':
-#        command     => "/sbin/initctl stop pencil",
-#        require     => [Package["rubygem-pencil"],
-#                        Package["rubygem-tilt"],
-#                        File["/etc/init/pencil.conf"], 
-#                        File["/opt/pencil/config/pencil.yml"],
-#                        File["/opt/pencil/config/graphs.yml"],
-#                        File["/opt/pencil/config/dashboards.yml"]];
-#
     'pencil_up':
         command     => "/sbin/initctl start pencil",
         require     => [File["/etc/init/pencil.conf"], 
