@@ -2,16 +2,19 @@
 metlog demo
 '''
 import datetime
-from metlog.holder import get_client
 import random
 import time
+from metlog.config import client_from_text_config
 
-cfg = {'sender': {'class': 'metlog.senders.zmq.ZmqPubSender',
-    #'bindstrs': 'tcp://aitc1.web.mtv1.dev.svc.mozilla.com:5565'}}
-    'bindstrs': 'tcp://192.168.20.2:5565'}}
+cfg_txt = """[metlog]
+sender_class = metlog.senders.ZmqPubSender
+sender_bindstrs = tcp://192.168.20.2:5565
 
-
-client = get_client('myapp', cfg)
+[metlog_plugin_raven]
+provider=metlog_raven.raven_plugin:config_plugin
+sentry_project_id=2
+"""
+client = client_from_text_config(cfg_txt, 'metlog')
 
 
 def test_incr_pegs():
@@ -44,10 +47,20 @@ def test_exceptions():
 
 #test_incr_pegs()
 
-while True:
-    for i in range(100):
-        msg = "this is some text from osx to aitc : %s"
-        msg = msg % datetime.datetime.now()
-        client.error(msg)
-    time.sleep(1)
-    print "Slept: %s" % datetime.datetime.now()
+def send_error_msgs():
+    while True:
+        for i in range(100):
+            msg = "this is some text from osx to aitc : %s"
+            msg = msg % datetime.datetime.now()
+            client.error(msg)
+        time.sleep(1)
+        print "Slept: %s" % datetime.datetime.now()
+
+
+def send_raven_msgs():
+    try:
+        1 / 0
+    except:
+        client.raven('myapp')
+
+send_raven_msgs()
