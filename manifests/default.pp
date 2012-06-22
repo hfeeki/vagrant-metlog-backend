@@ -49,6 +49,23 @@ $moz_packages = [
     'rubygem-petef-statsd', # RPMS.mozilla-services
 ]
 
+$sentry_packages = [
+    'python26-beautifulsoup',
+    'python26-cssutils',
+    'python26-django-celery',
+    'python26-django-indexer',
+    'python26-django-paging',
+    'python26-django-picklefield',
+    'python26-django-templatetag-sugar',
+    'python26-gunicorn',
+    'python26-httpagentparser',
+    'python26-logan',
+    'python26-pynliner',
+    'python26-raven',
+    'python26-simplejson',
+    'python26-south',
+    ]
+
 # These come from a signed Fedora 6 EPEL repository
 $django_epel = ['Django','django-tagging']
 
@@ -85,6 +102,12 @@ package {
         ensure  => present,
         require => [Yumrepo['moz_rpms'], Package[$logstash_epel]];
 
+    # Sentry has enough dependencies that we really want a separate
+    # repository to manage them
+    $sentry_packages:
+        ensure  => present,
+        require => [Yumrepo['sentry_repo']];
+
 }
 
 ## Local RPM Repo
@@ -100,12 +123,17 @@ yumrepo {
         baseurl     => 'http://people.mozilla.com/~vng/vagrant_mrepo/moz/$releasever/$basearch',
         enabled     => 1,
         gpgcheck    => 0;
+    'sentry_repo':
+        descr       => "Sentry 4.7.7 RPM Repo",
+        baseurl     => 'http://people.mozilla.com/~vng/vagrant_mrepo/sentry',
+        enabled     => 1,
+        gpgcheck    => 0;
 }
-
 
 
 # Make sure not to install the yum repo until its completely ready
 Package["createrepo"] -> 
+Yumrepo['sentry_repo'] ->
 Yumrepo['moz_rpms'] ->
 Yumrepo['epel6_rpms']
 
