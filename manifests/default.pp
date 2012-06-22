@@ -139,7 +139,7 @@ file {
     '/etc/init/logstash.conf':
         ensure  => present,
         path    => "/etc/init/logstash.conf",
-        source  => "/vagrant/files/logstash.init.conf",
+        source  => "/vagrant/files/startup/logstash.conf",
         owner   => 'root',
         group   => 'root',
         mode    => 644;
@@ -277,7 +277,7 @@ file {
 }
 
 
-## startup scripts for statsd, carbon and pencil
+## startup scripts for sentry, statsd, carbon and pencil
 file {
     '/etc/init.d/statsd':
         ensure  => present,
@@ -287,6 +287,16 @@ file {
         group   => 'root',
         mode    => 755,
         force   => true;
+
+    '/etc/init/sentry.conf':
+        ensure  => present,
+        path    => "/etc/init/sentry.conf",
+        source  => "/vagrant/files/startup/sentry.conf",
+        owner   => 'root',
+        group   => 'root',
+        mode    => 755,
+        force   => true;
+
     '/etc/init/carbon.conf':
         ensure  => present,
         path    => "/etc/init/carbon.conf",
@@ -338,6 +348,9 @@ exec {
                         File["/opt/pencil/config/pencil.yml"],
                         File["/opt/pencil/config/graphs.yml"],
                         File["/opt/pencil/config/dashboards.yml"]];
+    'sentry_up':
+        command     => "/sbin/initctl start sentry",
+        require     => File["/etc/init/sentry.conf"];
     'statsd_up':
         command     => "/sbin/service statsd start",
         require     => File["/etc/init.d/statsd"];
