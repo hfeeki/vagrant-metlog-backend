@@ -150,15 +150,46 @@ Yumrepo['sentry_repo'] ->
 Yumrepo['moz_rpms'] ->
 Yumrepo['epel6_rpms']
 
+###
+# Sentry setup
+file {
+    "/opt/sentry":
+        require => [File["/opt"]],
+        ensure => "directory",
+        owner  => "root",
+        group  => "root",
+        mode   => 644;
+
+    "/opt/sentry/sentry.db":
+        require => [Package["python26-sentry"], File["/opt/sentry"]],
+        ensure => present,
+        path   => "/opt/sentry/sentry.db",
+        source => "/vagrant/files/sentry/sentry.db",
+        owner  => "root",
+        group  => "root",
+        mode   => 755;
+
+    "/opt/sentry/sentry.conf.py":
+        ensure => present,
+        path   => "/opt/sentry/sentry.conf.py",
+        source => "/vagrant/files/sentry/sentry.conf.py",
+        owner  => "root",
+        group  => "root",
+        require => File["/opt/sentry"],
+        mode   => 644;
+}
+
+
+
 ## Nginx Setup
 
 file {
-    'nginx.conf':
+    '/etc/nginx/nginx.conf':
         ensure  => present,
         path    => "/etc/nginx/nginx.conf",
         source  => "/vagrant/files/nginx.conf",
         require => Package["nginx"];
-    'default.conf':
+    '/etc/nginx/conf.d/default.conf':
         ensure  => absent,
         path    => "/etc/nginx/conf.d/default.conf",
         require => Package["nginx"];
@@ -167,7 +198,7 @@ file {
 service {'nginx':
     ensure      => running,
     enable     => true,
-    subscribe   => File["nginx.conf"],
+    subscribe   => File["/etc/nginx/nginx.conf"],
 }
 
 ## Logstash Setup
@@ -214,7 +245,7 @@ file {
 
 # Graphite/Carbon config files
 file {
-    'wsgi_conf':
+    '/etc/httpd/conf.d/wsgi.conf':
         ensure => present,
         path   => "/etc/httpd/conf.d/wsgi.conf",
         source => "/vagrant/files/httpd/wsgi.conf",
@@ -242,7 +273,7 @@ file {
         group  => "root",
         mode   => 644;
 
-    'carbon_conf':
+    '/opt/graphite/conf/carbon.conf':
         ensure => present,
         path   => "/opt/graphite/conf/carbon.conf",
         source => "/vagrant/files/graphite/carbon.conf",
@@ -250,7 +281,8 @@ file {
         group  => "root",
         require => File["/opt/graphite/conf"],
         mode   => 644;
-    'storageaggregation_conf':
+
+    '/opt/graphite/conf/storage-aggregation.conf':
         ensure => present,
         path   => "/opt/graphite/conf/storage-aggregation.conf",
         source => "/vagrant/files/graphite/storage-aggregation.conf",
@@ -258,7 +290,8 @@ file {
         group  => "root",
         require => File["/opt/graphite/conf"],
         mode   => 644;
-    'storageschemas_conf':
+
+    '/opt/graphite/conf/storage-schemas.conf':
         ensure => present,
         path   => "/opt/graphite/conf/storage-schemas.conf",
         source => "/vagrant/files/graphite/storage-schemas.conf",
@@ -266,7 +299,7 @@ file {
         group  => "root",
         require => File["/opt/graphite/conf"],
         mode   => 644;
-    'graphite_wsgi':
+    '/opt/graphite/conf/graphite.wsgi':
         ensure => present,
         path   => "/opt/graphite/conf/graphite.wsgi",
         source => "/vagrant/files/graphite/graphite.wsgi",
@@ -391,7 +424,7 @@ exec {
                         File["/opt/pencil/config/dashboards.yml"]];
     'sentry_up':
         command     => "/sbin/initctl start sentry",
-        require     => File["/etc/init/sentry.conf"];
+        require     => [File["/etc/init/sentry.conf"], File['/opt/sentry/sentry.conf.py']];
     'statsd_up':
         command     => "/sbin/service statsd start",
         require     => File["/etc/init.d/statsd"];
@@ -406,16 +439,18 @@ exec {
         require     => File["whisperdb_init"];
     'restart_apache':
         command     => "/sbin/service httpd restart",
-        require     => [File["wsgi_conf"], File["graphite_wsgi"], Exec["iptables_down"]];
+        require     => [File["/etc/httpd/conf.d/wsgi.conf"], File["/opt/graphite/conf/graphite.wsgi"], Exec["iptables_down"]];
 }
 
 
 Package["zeromq"] ->
 Package["logstash"] ->
 Package["logstash-metlog"] ->
-File["wsgi_conf"] ->
-File["carbon_conf"] ->
-File["graphite_wsgi"] ->
+File["/etc/httpd/conf.d/wsgi.conf"] ->
+File["/opt/sentry/sentry.conf.py"] ->
+File["/opt/graphite/conf/carbon.conf"] ->
+File["/opt/graphite/conf/carbon.conf"] ->
+File["/opt/graphite/conf/graphite.wsgi"] ->
 File["logstash.conf"] ->
 File["/etc/init/logstash.conf"] ->
 Exec["start_logstash"] ->
@@ -425,4 +460,5 @@ File["/etc/init.d/statsd"] ->
 File["/etc/init/carbon.conf"] ->
 Exec["iptables_down"] ->
 Exec["restart_apache"] ->
-Exec["pencil_up"]
+Exec["pencil_up"] ->
+Exec["sentry_up"]
