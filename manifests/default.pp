@@ -10,7 +10,7 @@ $centos_packages = [
     'rpm-python',
     'rpmdevtools',
     'httpd',
-    'python-simplejson',
+    #'python-simplejson', # we need 2.3 from the sentry packages
     'python-twisted',
     'bitmap-fonts-compat',
 ]
@@ -35,7 +35,9 @@ $moz_packages = [
                            #  rpmlib(CompressedFileNames) <= 3.0.4-1
 
     'mod_wsgi-3.3-1.el6.x86_64', # RPMS.mozilla
-    'gunicorn', # RPMS.mozilla-services (mozilla compiled)
+    #'gunicorn', # RPMS.mozilla-services (mozilla compiled)  
+            ## We need a 0.14 revision of gunicorn for sentry
+
     'logstash', # RPMS.mozilla-services (JAR files + pattern files). Suggest going straight from spec file.
     'logstash-metlog', # RPMS.mozilla-services 
 
@@ -50,24 +52,35 @@ $moz_packages = [
 ]
 
 $sentry_packages = [
-    'python26-beautifulsoup',
-    'python26-cssutils',
-    'python26-django-celery',
-    'python26-django-indexer',
-    'python26-django-paging',
-    'python26-django-picklefield',
-    'python26-django-templatetag-sugar',
-    'python26-gunicorn',
-    'python26-httpagentparser',
-    'python26-logan',
-    'python26-pynliner',
-    'python26-raven',
-    'python26-simplejson',
-    'python26-south',
+    'Django', 
+    'python26-amqplib', 
+    'python26-anyjson', 
+    'python26-beautifulsoup', 
+    'python26-celery', 
+    'python26-cssutils', 
+    'python26-dateutil', 
+    'python26-django-celery', 
+    'python26-django-crispy-forms', 
+    'python26-django-indexer', 
+    'python26-django-paging', 
+    'python26-django-picklefield', 
+    'python26-django-templatetag-sugar', 
+    'python26-gunicorn', 
+    'python26-httpagentparser', 
+    'python26-importlib', 
+    'python26-kombu', 
+    'python26-logan', 
+    'python26-ordereddict', 
+    'python26-pynliner', 
+    'python26-pytz', 
+    'python26-raven', 
+    'python26-sentry', 
+    'python26-simplejson', 
+    'python26-south', 
     ]
 
 # These come from a signed Fedora 6 EPEL repository
-$django_epel = ['Django','django-tagging']
+$django_epel = ['django-tagging']
 
 # You better have the real JRE installed - not some weird GCJ
 # contraption
