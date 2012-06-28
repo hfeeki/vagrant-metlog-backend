@@ -123,7 +123,39 @@ package {
 
 }
 
-## Local RPM Repo
+####
+# You can use a local RPM Repo if you really want
+#file {
+#    'local_repo':
+#        ensure => directory,
+#        recurse => true,
+#        path => "/local_repo",
+#        source => "/vagrant/local_repo",
+#}
+#
+#yumrepo {
+#    'epel6_rpms':
+#        descr       => "Local EPEL RPMs",
+#        baseurl     => 'file:///local_repo/epel6/6/x86_64',
+#        enabled     => 1,
+#        gpgcheck    => 0,
+#        require     => File['local_repo'];
+#    'moz_rpms':
+#        descr       => "Mozilla Services Repo",
+#        baseurl     => 'file:///local_repo/moz/6/x86_64',
+#        enabled     => 1,
+#        require     => File['local_repo'],
+#        gpgcheck    => 0;
+#    'sentry_repo':
+#        descr       => "Sentry 4.7.7 RPM Repo",
+#        baseurl     => 'file:///local_repo/sentry',
+#        require     => File['local_repo'],
+#        enabled     => 1,
+#        gpgcheck    => 0;
+#}
+##
+####
+
 
 yumrepo {
     'epel6_rpms':
@@ -184,12 +216,12 @@ file {
 ## Nginx Setup
 
 file {
-    '/etc/nginx/nginx.conf':
+    'nginx.conf':
         ensure  => present,
         path    => "/etc/nginx/nginx.conf",
         source  => "/vagrant/files/nginx.conf",
         require => Package["nginx"];
-    '/etc/nginx/conf.d/default.conf':
+    'default.conf':
         ensure  => absent,
         path    => "/etc/nginx/conf.d/default.conf",
         require => Package["nginx"];
@@ -198,13 +230,13 @@ file {
 service {'nginx':
     ensure      => running,
     enable     => true,
-    subscribe   => File["/etc/nginx/nginx.conf"],
+    subscribe   => File["nginx.conf"],
 }
 
 ## Logstash Setup
 
 file {
-    'logstash.conf':
+    '/etc/logstash.conf':
         ensure  => present,
         path    => "/etc/logstash.conf",
         source  => "/vagrant/files/logstash.conf";
@@ -281,7 +313,6 @@ file {
         group  => "root",
         require => File["/opt/graphite/conf"],
         mode   => 644;
-
     '/opt/graphite/conf/storage-aggregation.conf':
         ensure => present,
         path   => "/opt/graphite/conf/storage-aggregation.conf",
@@ -290,7 +321,6 @@ file {
         group  => "root",
         require => File["/opt/graphite/conf"],
         mode   => 644;
-
     '/opt/graphite/conf/storage-schemas.conf':
         ensure => present,
         path   => "/opt/graphite/conf/storage-schemas.conf",
@@ -399,23 +429,6 @@ exec {
         command => "/sbin/initctl start logstash",
         unless  => "/sbin/initctl status logstash | grep -w running";
 
-    'reload_pencil':
-        command     => "/sbin/initctl restart pencil",
-        subscribe   => [File["/opt/pencil/config/graphs.yml"],
-                        File["/opt/pencil/config/dashboards.yml"],
-                        File["/opt/pencil/config/pencil.yml"]],
-        require     => [Package["rubygem-pencil"],Package['rubygem-petef-statsd'],
-                        File['/etc/init/pencil.conf'],
-                        File['/etc/init/carbon.conf'],
-                        File['/etc/init.d/statsd']],
-        refreshonly => true;
-
-    'reload_logstash':
-        command     => "/sbin/initctl restart logstash",
-        subscribe   => File["logstash.conf"],
-        require     => [Package["logstash"], File['/etc/init/logstash.conf']],
-        refreshonly => true;
-
     'pencil_up':
         command     => "/sbin/initctl start pencil",
         require     => [File["/etc/init/pencil.conf"], 
@@ -424,7 +437,8 @@ exec {
                         File["/opt/pencil/config/dashboards.yml"]];
     'sentry_up':
         command     => "/sbin/initctl start sentry",
-        require     => [File["/etc/init/sentry.conf"], File['/opt/sentry/sentry.conf.py']];
+        require     => [File["/etc/init/sentry.conf"], Package['python26-sentry']];
+
     'statsd_up':
         command     => "/sbin/service statsd start",
         require     => File["/etc/init.d/statsd"];
@@ -447,18 +461,16 @@ Package["zeromq"] ->
 Package["logstash"] ->
 Package["logstash-metlog"] ->
 File["/etc/httpd/conf.d/wsgi.conf"] ->
-File["/opt/sentry/sentry.conf.py"] ->
-File["/opt/graphite/conf/carbon.conf"] ->
 File["/opt/graphite/conf/carbon.conf"] ->
 File["/opt/graphite/conf/graphite.wsgi"] ->
-File["logstash.conf"] ->
+File["/etc/logstash.conf"] ->
 File["/etc/init/logstash.conf"] ->
-Exec["start_logstash"] ->
-Exec["init_whisperdb"] ->
-File["/etc/init/pencil.conf"] ->
 File["/etc/init.d/statsd"] ->
 File["/etc/init/carbon.conf"] ->
+Exec["start_logstash"] ->
+Exec["init_whisperdb"] ->
 Exec["iptables_down"] ->
 Exec["restart_apache"] ->
+File["/etc/init/pencil.conf"] ->
 Exec["pencil_up"] ->
 Exec["sentry_up"]
