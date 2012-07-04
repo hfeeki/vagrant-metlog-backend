@@ -5,7 +5,7 @@ from ConfigParser import SafeConfigParser
 import argparse
 from metlog.config import client_from_stream_config
 import datetime
-import random
+import time
 
 parser = argparse.ArgumentParser(description="Upload JSON logs to HDFS")
 parser.add_argument('--config',
@@ -30,30 +30,39 @@ def send_incr_pegs():
             'syncstorage.request_rate.404',
             'syncstorage.request_rate.503']:
 
-        min = random.randint(10, 200)
-        max = random.randint(min, min + 500)
-
         print "Sending: %s" % k
-        for i in range(random.randint(min, max)):
+        for i in range(50):
             client.incr("%s.%s.%s" % (k, cluster_name, host_name))
+            print "incr %s" % k
+            time.sleep(0)
 
 
 def send_error_msgs():
     print "Sending Oldstyle Err msgs"
-    for i in range(100):
+    for i in range(20):
         msg = "this is some text from osx to aitc : %s"
         msg = msg % datetime.datetime.now()
         client.error(msg)
+        print "error %s" % msg
+        time.sleep(0)
 
 
 def send_raven_msgs():
     print "Sending Exceptions"
-    for i in range(200):
+    for i in range(20):
         try:
             1 / 0
         except:
-            client.raven('myapp.raven')
+            client.exception(msg="Something really went wrong")
+        print "raven exception sent"
+        time.sleep(0)
 
-send_incr_pegs()
-send_error_msgs()
-send_raven_msgs()
+
+def main():
+    send_incr_pegs()
+    send_error_msgs()
+    send_raven_msgs()
+
+
+if __name__ == '__main__':
+    main()
