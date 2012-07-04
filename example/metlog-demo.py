@@ -1,23 +1,24 @@
 '''
 metlog demo
 '''
+from ConfigParser import SafeConfigParser
+import argparse
+from metlog.config import client_from_stream_config
 import datetime
 import random
-import time
-from metlog.config import client_from_text_config
 
-cfg_txt = """[metlog]
-sender_class = metlog.senders.ZmqPubSender
-sender_bindstrs = tcp://192.168.20.2:5565
+parser = argparse.ArgumentParser(description="Upload JSON logs to HDFS")
+parser.add_argument('--config',
+        type=argparse.FileType('r'),
+        required=True)
 
-[metlog_plugin_raven]
-provider=metlog_raven.raven_plugin:config_plugin
-sentry_project_id=2
-"""
-client = client_from_text_config(cfg_txt, 'metlog')
+parsed_args = parser.parse_args()
+
+cfg = SafeConfigParser()
+client = client_from_stream_config(parsed_args.config, 'metlog')
 
 
-def test_incr_pegs():
+def send_incr_pegs():
     """
     Just a check for increment counts
     """
@@ -32,35 +33,27 @@ def test_incr_pegs():
         min = random.randint(10, 200)
         max = random.randint(min, min + 500)
 
+        print "Sending: %s" % k
         for i in range(random.randint(min, max)):
             client.incr("%s.%s.%s" % (k, cluster_name, host_name))
-    print "Sleeping 1 : %s" % datetime.datetime.now()
-    time.sleep(1)
 
-
-def test_exceptions():
-    '''
-    Exceptions should get routed to
-    '''
-    pass
-
-
-#test_incr_pegs()
 
 def send_error_msgs():
-    while True:
-        for i in range(100):
-            msg = "this is some text from osx to aitc : %s"
-            msg = msg % datetime.datetime.now()
-            client.error(msg)
-        time.sleep(1)
-        print "Slept: %s" % datetime.datetime.now()
+    print "Sending Oldstyle Err msgs"
+    for i in range(100):
+        msg = "this is some text from osx to aitc : %s"
+        msg = msg % datetime.datetime.now()
+        client.error(msg)
 
 
 def send_raven_msgs():
-    try:
-        1 / 0
-    except:
-        client.raven('myapp')
+    print "Sending Exceptions"
+    for i in range(200):
+        try:
+            1 / 0
+        except:
+            client.raven('myapp.raven')
 
+send_incr_pegs()
+send_error_msgs()
 send_raven_msgs()
