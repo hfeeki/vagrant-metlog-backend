@@ -429,14 +429,16 @@ exec {
         command => "/sbin/initctl start logstash",
         unless  => "/sbin/initctl status logstash | grep -w running";
 
-    'pencil_up':
+    'start_pencil':
         command     => "/sbin/initctl start pencil",
+        unless  => "/sbin/initctl status pencil | grep -w running",
         require     => [File["/etc/init/pencil.conf"], 
                         File["/opt/pencil/config/pencil.yml"],
                         File["/opt/pencil/config/graphs.yml"],
                         File["/opt/pencil/config/dashboards.yml"]];
-    'sentry_up':
+    'start_sentry':
         command     => "/sbin/initctl start sentry",
+        unless      => "/sbin/initctl status sentry | grep -w running",
         require     => [File["/etc/init/sentry.conf"], Package['python26-sentry']];
 
     'statsd_up':
@@ -472,5 +474,5 @@ Exec["init_whisperdb"] ->
 Exec["iptables_down"] ->
 Exec["restart_apache"] ->
 File["/etc/init/pencil.conf"] ->
-Exec["pencil_up"] ->
-Exec["sentry_up"]
+Exec["start_pencil"] ->
+Exec["start_sentry"]
