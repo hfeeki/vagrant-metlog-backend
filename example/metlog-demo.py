@@ -53,15 +53,44 @@ def send_raven_msgs():
         try:
             1 / 0
         except:
+            # Note that the config.ini has *overridden* the default
+            # exception method with a raven implementation
             client.exception(msg="Something really went wrong")
         print "raven exception sent"
         time.sleep(0)
 
 
+def send_cef_logs():
+    print "Sending CEF messages"
+
+    cef_environ = {'REMOTE_ADDR': '127.0.0.1', 'HTTP_HOST': '127.0.0.1',
+                    'PATH_INFO': '/', 'REQUEST_METHOD': 'GET',
+                    'HTTP_USER_AGENT': 'MySuperBrowser'}
+
+    cef_config = {'cef.version': '0', 'cef.vendor': 'mozilla',
+            'cef.device_version': '3', 'cef.product': 'weave',
+            'cef': True}
+
+    def send_cef(name, severity, *args, **kwargs):
+        client.cef(name, severity, cef_environ, cef_config)
+
+    for i in range(20):
+        send_cef('xx|x', 5)
+        send_cef('xxx', 5, **{'ba': 1})
+        send_cef('xx|x', 5, username='me')
+
+
+def send_unexpected_data():
+    for i in range(100):
+        client.metlog(type='a_new_type', logger='some_new_app',
+                payload='blah blah blah')
+
 def main():
     send_incr_pegs()
     send_error_msgs()
     send_raven_msgs()
+    send_cef_logs()
+    send_unexpected_data()
 
 
 if __name__ == '__main__':
