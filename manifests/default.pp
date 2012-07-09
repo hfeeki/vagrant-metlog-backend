@@ -444,8 +444,9 @@ exec {
     'statsd_up':
         command     => "/sbin/service statsd start",
         require     => File["/etc/init.d/statsd"];
-    'carbon_up':
+    'start_carbon':
         command     => "/sbin/initctl start carbon",
+        unless      => "/sbin/initctl status carbon| grep -w running",
         require     => File["/etc/init/carbon.conf"];
     'iptables_down':
         command     => "/usr/local/bin/iptables_flush",
