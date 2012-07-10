@@ -81,9 +81,18 @@ def send_cef_logs():
 
 
 def send_unexpected_data():
+    print "Sending new unknown type data"
     for i in range(100):
         client.metlog(type='a_new_type', logger='some_new_app',
                 payload='blah blah blah')
+
+
+def send_psutil_data():
+    print "Sending psutil data"
+    for i in range(100):
+        client.procinfo(net=True, cpu=True, mem=True,
+                threads=True, busy=True)
+
 
 def main():
     send_incr_pegs()
@@ -91,6 +100,7 @@ def main():
     send_raven_msgs()
     send_cef_logs()
     send_unexpected_data()
+    send_psutil_data()
 
 
 if __name__ == '__main__':
