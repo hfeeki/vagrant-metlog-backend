@@ -86,6 +86,18 @@ $django_epel = ['django-tagging']
 # contraption
 $logstash_epel = ['java-1.6.0-sun-1.6.0.22-1jpp.1.el6.x86_64']
 
+# We use Cloudera's CDH3 distribution of Hadoop
+$cdh3_packages = ['hadoop-0.20',
+    'hadoop-0.20-native',
+    'hue',
+    'hadoop-hive-server',
+    'hadoop-0.20-namenode',
+    'hadoop-0.20-datanode',
+    'hadoop-0.20-secondarynamenode',
+    'hadoop-0.20-jobtracker',
+    'hadoop-0.20-tasktracker',
+]
+
 package { 
     $baserepo_packages:
         ensure  => present;
@@ -113,7 +125,7 @@ package {
     # the raw dependencies have been sorted out
     $moz_packages:
         ensure  => present,
-        require => [Yumrepo['moz_rpms'], Package[$logstash_epel]];
+        require => [Yumrepo['moz_repo'], Package[$logstash_epel]];
 
     # Sentry has enough dependencies that we really want a separate
     # repository to manage them
@@ -121,6 +133,9 @@ package {
         ensure  => present,
         require => [Yumrepo['sentry_repo']];
 
+    $cdh3_packages:
+        ensure  => present,
+        require => [Yumrepo['cdh3_repo']];
 }
 
 ####
@@ -140,7 +155,7 @@ package {
 #        enabled     => 1,
 #        gpgcheck    => 0,
 #        require     => File['local_repo'];
-#    'moz_rpms':
+#    'moz_repo':
 #        descr       => "Mozilla Services Repo",
 #        baseurl     => 'file:///local_repo/moz/6/x86_64',
 #        enabled     => 1,
@@ -163,7 +178,7 @@ yumrepo {
         baseurl     => 'http://people.mozilla.com/~vng/vagrant_mrepo/epel6/$releasever/$basearch',
         enabled     => 1,
         gpgcheck    => 0;
-    'moz_rpms':
+    'moz_repo':
         descr       => "Mozilla Services Repo",
         baseurl     => 'http://people.mozilla.com/~vng/vagrant_mrepo/moz/$releasever/$basearch',
         enabled     => 1,
@@ -173,13 +188,19 @@ yumrepo {
         baseurl     => 'http://people.mozilla.com/~vng/vagrant_mrepo/sentry',
         enabled     => 1,
         gpgcheck    => 0;
+    'cdh3_repo':
+        descr       => "Cloudera 3 Hadoop Repo",
+        baseurl     => 'http://people.mozilla.com/~vng/vagrant_mrepo/cdh3/6',
+        enabled     => 1,
+        gpgcheck    => 0;
 }
 
 
 # Make sure not to install the yum repo until its completely ready
 Package["createrepo"] -> 
 Yumrepo['sentry_repo'] ->
-Yumrepo['moz_rpms'] ->
+Yumrepo['moz_repo'] ->
+Yumrepo['cdh3_repo'] ->
 Yumrepo['epel6_rpms']
 
 ###
