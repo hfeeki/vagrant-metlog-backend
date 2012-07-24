@@ -36,7 +36,10 @@ $moz_packages = [
 
     'mod_wsgi-3.3-1.el6.x86_64', # RPMS.mozilla
     #'gunicorn', # RPMS.mozilla-services (mozilla compiled)  
-            ## We need a 0.14 revision of gunicorn for sentry
+                 # We need a 0.14 revision of gunicorn for sentry
+                 # This seems crazy.  sentry is just a wsgi app
+                 # TODO: send a patch up to sentry to remove
+                 # dependency on gunicorn
 
     'logstash', # RPMS.mozilla-services (JAR files + pattern files). Suggest going straight from spec file.
     'logstash-metlog', # RPMS.mozilla-services 
