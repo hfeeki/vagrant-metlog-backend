@@ -443,6 +443,24 @@ file {
         force   => true;
 }
 
+# Sample HDFS data 
+file {
+    '/var/log/aitc':
+        ensure => "directory",
+        owner  => "root",
+        group  => "root",
+        mode   => 775;
+
+    '/var/log/aitc/metrics_hdfs.log':
+        ensure  => present,
+        path    => "/var/log/aitc/metrics_hdfs.log",
+        source  => "/vagrant/files/var/log/aitc/metrics_hdfs.log",
+        owner   => 'root',
+        group   => 'root',
+        mode    => 775,
+        force   => true;
+}
+
 exec {
     'update_init':
         command => "/sbin/initctl reload-configuration",
