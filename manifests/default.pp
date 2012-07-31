@@ -90,17 +90,19 @@ $django_epel = ['django-tagging']
 $logstash_epel = ['java-1.6.0-sun-1.6.0.22-1jpp.1.el6.x86_64']
 
 # We use Cloudera's CDH3 distribution of Hadoop
-$cdh3_packages = ['hadoop-0.20',
-    'hadoop-0.20-native',
-    'hue',
-    'hadoop-hive',
-    'hadoop-hbase',
-    'hadoop-hive-server',
-    'hadoop-0.20-namenode',
+$cdh3_packages = [
+    'hadoop-0.20',
+    'hadoop-0.20-conf-pseudo',
     'hadoop-0.20-datanode',
-    'hadoop-0.20-secondarynamenode',
     'hadoop-0.20-jobtracker',
+    'hadoop-0.20-namenode',
+    'hadoop-0.20-native',
+    'hadoop-0.20-secondarynamenode',
     'hadoop-0.20-tasktracker',
+    'hadoop-hbase',
+    'hadoop-hive',
+    'hadoop-hive-server',
+    'hue',
 ]
 
 $mysql_packages = ['mysql',
@@ -209,12 +211,47 @@ yumrepo {
 }
 
 
-# Make sure not to install the yum repo until its completely ready
+# Make sure not to install the yum repo until createrepo is ready
 Package["createrepo"] -> 
 Yumrepo['sentry_repo'] ->
 Yumrepo['moz_repo'] ->
 Yumrepo['cdh3_repo'] ->
 Yumrepo['epel6_rpms']
+
+
+file {
+    # Hadoop startup script
+    "/tmp/start_hadoop.sh":
+        require => [Package["hadoop-hive"], Package["hadoop-hbase"], Package["hadoop-hive-server"]],
+        ensure => present,
+        path   => "/tmp/start_hadoop.sh",
+        source => "/vagrant/files/hadoop/start_hadoop.sh",
+        owner  => "root",
+        group  => "root",
+        mode   => 775;
+
+    # MySQLd startup script
+    "/tmp/start_mysqld.sh":
+        require => [Package["mysql-server"], Package["mysql"]],
+        ensure => present,
+        path   => "/tmp/start_mysqld.sh",
+        source => "/vagrant/files/mysql/start_mysqld.sh",
+        owner  => "root",
+        group  => "root",
+        mode   => 775;
+    
+    # MySQL security modification script
+    "/tmp/init_mysqldb.sql":
+        require => [Exec["start_mysqld"]],
+        ensure => present,
+        path   => "/tmp/init_mysqldb.sql", 
+        source => "/vagrant/files/mysql/init_mysqldb.sql",
+        owner  => "root",
+        group  => "root",
+        mode   => 775;
+
+}
+
 
 ####
 # MySQL connector installation
@@ -528,6 +565,21 @@ exec {
         require     => [File["/tmp/mysql-jdbc-connector-install.sh"]],
         onlyif => "test -f /usr/lib/hive//lib/mysql-connector-java-5.1.15-bin.jar";
 
+    'start_hadoop':
+        command     => "/tmp/start_hadoop.sh",
+        require     => [File["/tmp/start_hadoop.sh"]],
+        onlyif      => "test -f /usr/lib/hive//lib/mysql-connector-java-5.1.15-bin.jar";
+
+    'start_mysqld':
+        command     => "/bin/sh /tmp/start_mysqld.sh",
+        require     => [File["/tmp/start_mysqld.sh"]],
+        onlyif      => "test -f /var/run/mysqld/mysqld.pid";
+
+    'init_mysqld':
+        command     => "cat init_mysqldb.sql | mysql -u root",
+        require     => [File["/tmp/init_mysqldb.sql"]],
+        unless      => "/usr/bin/mysql --user=mydbadmin --password=mypass -e \"show databases\"";
+
 }
 
 
@@ -547,4 +599,6 @@ Exec["iptables_down"] ->
 Exec["restart_apache"] ->
 File["/etc/init/pencil.conf"] ->
 Exec["start_pencil"] ->
-Exec["start_sentry"]
+Exec["start_sentry"] ->
+Exec["start_mysqld"] ->
+Exec["init_mysqld"]
