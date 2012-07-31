@@ -1,0 +1,3 @@
+CREATE DATABASE metastore;
+USE metastore;
+SOURCE /usr/lib/hive/scripts/metastore/upgrade/mysql/hive-schema-0.7.0.mysql.sql;

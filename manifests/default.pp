@@ -93,6 +93,8 @@ $logstash_epel = ['java-1.6.0-sun-1.6.0.22-1jpp.1.el6.x86_64']
 $cdh3_packages = ['hadoop-0.20',
     'hadoop-0.20-native',
     'hue',
+    'hadoop-hive',
+    'hadoop-hbase',
     'hadoop-hive-server',
     'hadoop-0.20-namenode',
     'hadoop-0.20-datanode',
@@ -100,6 +102,9 @@ $cdh3_packages = ['hadoop-0.20',
     'hadoop-0.20-jobtracker',
     'hadoop-0.20-tasktracker',
 ]
+
+$mysql_packages = ['mysql',
+    'mysql-server']
 
 package { 
     $baserepo_packages:
@@ -130,6 +135,7 @@ package {
         ensure  => present,
         require => [Yumrepo['moz_repo'], Package[$logstash_epel]];
 
+
     # Sentry has enough dependencies that we really want a separate
     # repository to manage them
     $sentry_packages:
@@ -139,6 +145,10 @@ package {
     $cdh3_packages:
         ensure  => present,
         require => [Yumrepo['cdh3_repo']];
+
+    # Mysql is needed by Apache Hive to back the metadata storage
+    $mysql_packages:
+        ensure  => present;
 }
 
 ####
@@ -205,6 +215,19 @@ Yumrepo['sentry_repo'] ->
 Yumrepo['moz_repo'] ->
 Yumrepo['cdh3_repo'] ->
 Yumrepo['epel6_rpms']
+
+####
+# MySQL connector installation
+file  {
+    "/tmp/mysql-jdbc-connector-install.sh":
+        require => [Package["mysql"], Package["mysql-server"]],
+        ensure => present,
+        path   => "/tmp/mysql-jdbc-connector-install.sh",
+        source => "/vagrant/files/hadoop/mysql-jdbc-connector-install.sh",
+        owner  => "root",
+        group  => "root",
+        mode   => 775;
+}
 
 ###
 # Sentry setup
@@ -499,6 +522,12 @@ exec {
     'restart_apache':
         command     => "/sbin/service httpd restart",
         require     => [File["/etc/httpd/conf.d/wsgi.conf"], File["/opt/graphite/conf/graphite.wsgi"], Exec["iptables_down"]];
+
+    'install_mysql_jdbc_connector':
+        command     => "/tmp/mysql-jdbc-connector-install.sh",
+        require     => [File["/tmp/mysql-jdbc-connector-install.sh"]],
+        onlyif => "test -f /usr/lib/hive//lib/mysql-connector-java-5.1.15-bin.jar";
+
 }
 
 
