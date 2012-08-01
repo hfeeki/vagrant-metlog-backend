@@ -604,9 +604,10 @@ exec {
         require     => [File["/tmp/init_mysqldb.sql"]],
         unless      => "/usr/bin/mysql --user=mydbadmin --password=mypass -e \"show databases\"";
 
-#    'init_hivemetadb':
-#        command     => "cat /tmp/init_hive_metastore.sql | mysql --user=mydbadmin --password=mypass ",
-#        require     => [File["/tmp/init_hive_metastore.sql"]];
+    'init_hive':
+        command     => "cat /tmp/init_hive.sql | mysql --user=mydbadmin --password=mypass",
+        require     => [File["/tmp/init_hive.sql"], Exec["init_mysqld"]],
+        unless => "/usr/bin/mysql --user=mydbadmin --password=mypass -e \"use metastore;\""
 
 }
 
