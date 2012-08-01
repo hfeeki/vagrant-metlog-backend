@@ -586,13 +586,13 @@ exec {
     'install_mysql_jdbc_connector':
         command     => "/tmp/mysql-jdbc-connector-install.sh",
         require     => [File["/tmp/mysql-jdbc-connector-install.sh"]],
-        onlyif => "test -f /usr/lib/hive//lib/mysql-connector-java-5.1.15-bin.jar";
+        onlyif      => "test ! -f /usr/lib/hive//lib/mysql-connector-java-5.1.15-bin.jar";
 
     'restart_hadoop':
         command     => "/tmp/start_hadoop.sh",
         require     => [File["/tmp/start_hadoop.sh"]],
-        onlyif      => "test -f /usr/lib/hive//lib/mysql-connector-java-5.1.15-bin.jar",
-        subscribe   => File["/etc/hadoop-0.20/conf/mapred-site.xml"];
+        onlyif      => "test -f /usr/lib/hive//lib/mysql-connector-java-5.1.15-bin.jar";
+        #subscribe   => File["/etc/hadoop-0.20/conf/mapred-site.xml"];
 
     'start_mysqld':
         command     => "/bin/sh /tmp/start_mysqld.sh",
@@ -630,4 +630,5 @@ File["/etc/init/pencil.conf"] ->
 Exec["start_pencil"] ->
 Exec["start_sentry"] ->
 Exec["start_mysqld"] ->
-Exec["init_mysqld"]
+Exec["init_mysqld"] ->
+Exec["init_hive"]
