@@ -280,7 +280,10 @@ file {
 # MySQL connector installation
 file  {
     "/tmp/mysql-jdbc-connector-install.sh":
-        require => [Package["mysql"], Package["mysql-server"]],
+        require => [Package["mysql"],
+                Package["mysql-server"],
+                Package["hadoop-hive"],
+                Package["hadoop-hive-server"]],
         ensure => present,
         path   => "/tmp/mysql-jdbc-connector-install.sh",
         source => "/vagrant/files/hadoop/mysql-jdbc-connector-install.sh",
@@ -590,23 +593,21 @@ exec {
 
     'restart_hadoop':
         command     => "/tmp/start_hadoop.sh",
-        require     => [File["/tmp/start_hadoop.sh"]],
+        require     => [File["/tmp/start_hadoop.sh"], Exec["install_mysql_jdbc_connector"], File["/etc/hadoop-0.20/conf/mapred-site.xml"]],
         onlyif      => "test -f /usr/lib/hive//lib/mysql-connector-java-5.1.15-bin.jar";
-        #subscribe   => File["/etc/hadoop-0.20/conf/mapred-site.xml"];
 
     'start_mysqld':
-        command     => "/bin/sh /tmp/start_mysqld.sh",
-        require     => [File["/tmp/start_mysqld.sh"]],
-        onlyif      => "test -f /var/run/mysqld/mysqld.pid";
+        command     => "/tmp/start_mysqld.sh",
+        require     => [File["/tmp/start_mysqld.sh"]];
 
     'init_mysqld':
         command     => "cat /tmp/init_mysqldb.sql | mysql -u root",
-        require     => [File["/tmp/init_mysqldb.sql"]],
+        require     => [Exec["start_mysqld"], File["/tmp/init_mysqldb.sql"]],
         unless      => "/usr/bin/mysql --user=mydbadmin --password=mypass -e \"show databases\"";
 
     'init_hive':
-        command     => "cat /tmp/init_hive.sql | mysql --user=mydbadmin --password=mypass",
         require     => [File["/tmp/init_hive.sql"], Exec["init_mysqld"]],
+        command     => "cat /tmp/init_hive.sql | mysql --user=mydbadmin --password=mypass",
         unless => "/usr/bin/mysql --user=mydbadmin --password=mypass -e \"use metastore;\""
 
 }
@@ -628,7 +629,4 @@ Exec["iptables_down"] ->
 Exec["restart_apache"] ->
 File["/etc/init/pencil.conf"] ->
 Exec["start_pencil"] ->
-Exec["start_sentry"] ->
-Exec["start_mysqld"] ->
-Exec["init_mysqld"] ->
-Exec["init_hive"]
+Exec["start_sentry"]
