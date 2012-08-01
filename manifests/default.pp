@@ -255,6 +255,15 @@ file {
 # Apache Hive specific mysql configuration
 #
 file {
+    "/etc/hadoop-0.20/conf/mapred-site.xml":
+        require => [Package["hadoop-0.20-conf-pseudo"]],
+        ensure => present,
+        path   => "/etc/hadoop-0.20/conf/mapred-site.xml",
+        source => "/vagrant/files/hadoop/mapred-site.xml", 
+        owner  => "root",
+        group  => "root",
+        mode   => 775;
+
     "/tmp/init_hive.sql":
         require => [Package["mysql"], Package["mysql-server"]],
         ensure => present,
@@ -579,10 +588,11 @@ exec {
         require     => [File["/tmp/mysql-jdbc-connector-install.sh"]],
         onlyif => "test -f /usr/lib/hive//lib/mysql-connector-java-5.1.15-bin.jar";
 
-    'start_hadoop':
+    'restart_hadoop':
         command     => "/tmp/start_hadoop.sh",
         require     => [File["/tmp/start_hadoop.sh"]],
-        onlyif      => "test -f /usr/lib/hive//lib/mysql-connector-java-5.1.15-bin.jar";
+        onlyif      => "test -f /usr/lib/hive//lib/mysql-connector-java-5.1.15-bin.jar",
+        subscribe   => File["/etc/hadoop-0.20/conf/mapred-site.xml"];
 
     'start_mysqld':
         command     => "/bin/sh /tmp/start_mysqld.sh",
