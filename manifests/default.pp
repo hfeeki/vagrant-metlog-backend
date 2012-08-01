@@ -567,7 +567,37 @@ exec {
     'start_sentry':
         command     => "/sbin/initctl start sentry",
         unless      => "/sbin/initctl status sentry | grep -w running",
-        require     => [File["/etc/init/sentry.conf"], Package['python26-sentry']];
+        require     => [File["/etc/init/sentry.conf"], Package['python26-sentry'],
+
+    # This is crazy.  The sentry RPM needs to be rebuilt to properly
+    # specify RPM dependencies
+        Package["Django"], 
+        Package["python26-amqplib"], 
+        Package["python26-anyjson"], 
+        Package["python26-beautifulsoup"], 
+        Package["python26-celery"], 
+        Package["python26-cssutils"], 
+        Package["python26-dateutil"], 
+        Package["python26-django-celery"], 
+        Package["python26-django-crispy-forms"], 
+        Package["python26-django-indexer"], 
+        Package["python26-django-paging"], 
+        Package["python26-django-picklefield"], 
+        Package["python26-django-templatetag-sugar"], 
+        Package["python26-gunicorn"], 
+        Package["python26-httpagentparser"], 
+        Package["python26-importlib"], 
+        Package["python26-kombu"], 
+        Package["python26-logan"], 
+        Package["python26-ordereddict"], 
+        Package["python26-pynliner"], 
+        Package["python26-pytz"], 
+        Package["python26-raven"], 
+        Package["python26-simplejson"], 
+        Package["python26-south"], 
+
+
+];
 
     'statsd_up':
         command     => "/sbin/service statsd start",
@@ -632,7 +662,8 @@ Exec["start_pencil"]
 
 Exec["iptables_down"] ->
 Exec["restart_apache"] ->
-Exec["start_sentry"] ->
+Exec["start_sentry"]
+
 Exec["init_hive"] ->
 Exec["restart_hadoop"]
 
