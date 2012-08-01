@@ -593,7 +593,7 @@ exec {
 
     'restart_hadoop':
         command     => "/tmp/start_hadoop.sh",
-        require     => [File["/tmp/start_hadoop.sh"], Exec["install_mysql_jdbc_connector"], File["/etc/hadoop-0.20/conf/mapred-site.xml"]],
+        require     => [File["/tmp/start_hadoop.sh"], File["/etc/hadoop-0.20/conf/mapred-site.xml"]],
         onlyif      => "test -f /usr/lib/hive//lib/mysql-connector-java-5.1.15-bin.jar";
 
     'start_mysqld':
@@ -615,18 +615,24 @@ exec {
 
 Package["zeromq"] ->
 Package["logstash"] ->
-Package["logstash-metlog"] ->
+Package["logstash-metlog"]
+
+File["/etc/logstash.conf"] ->
+File["/etc/init/logstash.conf"] ->
+Exec["start_logstash"]
+
 File["/etc/httpd/conf.d/wsgi.conf"] ->
 File["/opt/graphite/conf/carbon.conf"] ->
 File["/opt/graphite/conf/graphite.wsgi"] ->
-File["/etc/logstash.conf"] ->
-File["/etc/init/logstash.conf"] ->
 File["/etc/init.d/statsd"] ->
 File["/etc/init/carbon.conf"] ->
-Exec["start_logstash"] ->
 Exec["init_whisperdb"] ->
+File["/etc/init/pencil.conf"] ->
+Exec["start_pencil"]
+
 Exec["iptables_down"] ->
 Exec["restart_apache"] ->
-File["/etc/init/pencil.conf"] ->
-Exec["start_pencil"] ->
-Exec["start_sentry"]
+Exec["start_sentry"] ->
+Exec["init_hive"] ->
+Exec["restart_hadoop"]
+
