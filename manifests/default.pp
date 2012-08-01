@@ -252,6 +252,20 @@ file {
 
 }
 
+# Apache Hive specific mysql configuration
+#
+file {
+    "/tmp/init_hive.sql":
+        require => [Package["mysql"], Package["mysql-server"]],
+        ensure => present,
+        path   => "/tmp/init_hive.sql",
+        source => "/vagrant/files/hadoop/hive/init_hive.sql", 
+        owner  => "root",
+        group  => "root",
+        mode   => 775;
+
+}
+
 
 ####
 # MySQL connector installation
@@ -576,9 +590,13 @@ exec {
         onlyif      => "test -f /var/run/mysqld/mysqld.pid";
 
     'init_mysqld':
-        command     => "cat init_mysqldb.sql | mysql -u root",
+        command     => "cat /tmp/init_mysqldb.sql | mysql -u root",
         require     => [File["/tmp/init_mysqldb.sql"]],
         unless      => "/usr/bin/mysql --user=mydbadmin --password=mypass -e \"show databases\"";
+
+#    'init_hivemetadb':
+#        command     => "cat /tmp/init_hive_metastore.sql | mysql --user=mydbadmin --password=mypass ",
+#        require     => [File["/tmp/init_hive_metastore.sql"]];
 
 }
 
