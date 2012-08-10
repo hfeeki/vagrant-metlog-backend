@@ -637,7 +637,7 @@ exec {
 
     'init_hive':
         require     => [File["/tmp/init_hive.sql"], Exec["init_mysqld"]],
-        command     => "cat /tmp/init_hive.sql | mysql --user=mydbadmin --password=mypass",
+        command     => "cat /tmp/init_hive.sql | mysql --user=mydbadmin --password=mypass; chmod 777 /var/lib/hive/metastore",
         unless => "/usr/bin/mysql --user=mydbadmin --password=mypass -e \"use metastore;\""
 
 }
