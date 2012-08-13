@@ -105,6 +105,10 @@ $cdh3_packages = [
     'hue',
 ]
 
+$metlog_hive_packages = [
+    'metlog-hive',
+]
+
 $mysql_packages = ['mysql',
     'mysql-server']
 
@@ -147,6 +151,10 @@ package {
     $cdh3_packages:
         ensure  => present,
         require => [Yumrepo['cdh3_repo']];
+
+    $metlog_hive_packages:
+        ensure  => present,
+        require => [Package[$cdh3_packages], Yumrepo['moz_repo']];
 
     # Mysql is needed by Apache Hive to back the metadata storage
     $mysql_packages:
@@ -638,7 +646,13 @@ exec {
     'init_hive':
         require     => [File["/tmp/init_hive.sql"], Exec["init_mysqld"]],
         command     => "cat /tmp/init_hive.sql | mysql --user=mydbadmin --password=mypass; chmod 777 /var/lib/hive/metastore",
-        unless => "/usr/bin/mysql --user=mydbadmin --password=mypass -e \"use metastore;\""
+        unless => "/usr/bin/mysql --user=mydbadmin --password=mypass -e \"use metastore;\"";
+
+    'install_metlog_hive':
+        require     => [Package['metlog-hive'], Exec["init_hive"]],
+        command     => "/bin/sleep 5; /usr/bin/hadoop dfs -mkdir /metlog/lib/; /usr/bin/hadoop dfs -put /opt/metlog/hadoop/hive/MetlogHive.jar /metlog/lib/MetlogHive.jar",
+        unless => "/usr/bin/hadoop dfs -ls /metlog/lib/MetlogHive.jar";
+
 
 }
 
@@ -665,5 +679,6 @@ Exec["restart_apache"] ->
 Exec["start_sentry"]
 
 Exec["init_hive"] ->
-Exec["restart_hadoop"]
+Exec["restart_hadoop"] ->
+Exec["install_metlog_hive"]
 
