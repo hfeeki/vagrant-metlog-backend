@@ -36,7 +36,10 @@ $moz_packages = [
 
     'mod_wsgi-3.3-1.el6.x86_64', # RPMS.mozilla
     #'gunicorn', # RPMS.mozilla-services (mozilla compiled)  
-            ## We need a 0.14 revision of gunicorn for sentry
+                 # We need a 0.14 revision of gunicorn for sentry
+                 # This seems crazy.  sentry is just a wsgi app
+                 # TODO: send a patch up to sentry to remove
+                 # dependency on gunicorn
 
     'logstash', # RPMS.mozilla-services (JAR files + pattern files). Suggest going straight from spec file.
     'logstash-metlog', # RPMS.mozilla-services 
@@ -86,6 +89,29 @@ $django_epel = ['django-tagging']
 # contraption
 $logstash_epel = ['java-1.6.0-sun-1.6.0.22-1jpp.1.el6.x86_64']
 
+# We use Cloudera's CDH3 distribution of Hadoop
+$cdh3_packages = [
+    'hadoop-0.20',
+    'hadoop-0.20-conf-pseudo',
+    'hadoop-0.20-datanode',
+    'hadoop-0.20-jobtracker',
+    'hadoop-0.20-namenode',
+    'hadoop-0.20-native',
+    'hadoop-0.20-secondarynamenode',
+    'hadoop-0.20-tasktracker',
+    'hadoop-hbase',
+    'hadoop-hive',
+    'hadoop-hive-server',
+    'hue',
+]
+
+$metlog_hive_packages = [
+    'metlog-hive',
+]
+
+$mysql_packages = ['mysql',
+    'mysql-server']
+
 package { 
     $baserepo_packages:
         ensure  => present;
@@ -113,7 +139,8 @@ package {
     # the raw dependencies have been sorted out
     $moz_packages:
         ensure  => present,
-        require => [Yumrepo['moz_rpms'], Package[$logstash_epel]];
+        require => [Yumrepo['moz_repo'], Package[$logstash_epel]];
+
 
     # Sentry has enough dependencies that we really want a separate
     # repository to manage them
@@ -121,6 +148,17 @@ package {
         ensure  => present,
         require => [Yumrepo['sentry_repo']];
 
+    $cdh3_packages:
+        ensure  => present,
+        require => [Yumrepo['cdh3_repo']];
+
+    $metlog_hive_packages:
+        ensure  => present,
+        require => [File['/tmp/test_hdfs_liveliness.sh'], Package[$cdh3_packages], Yumrepo['moz_repo']];
+
+    # Mysql is needed by Apache Hive to back the metadata storage
+    $mysql_packages:
+        ensure  => present;
 }
 
 ####
@@ -140,7 +178,7 @@ package {
 #        enabled     => 1,
 #        gpgcheck    => 0,
 #        require     => File['local_repo'];
-#    'moz_rpms':
+#    'moz_repo':
 #        descr       => "Mozilla Services Repo",
 #        baseurl     => 'file:///local_repo/moz/6/x86_64',
 #        enabled     => 1,
@@ -163,7 +201,7 @@ yumrepo {
         baseurl     => 'http://people.mozilla.com/~vng/vagrant_mrepo/epel6/$releasever/$basearch',
         enabled     => 1,
         gpgcheck    => 0;
-    'moz_rpms':
+    'moz_repo':
         descr       => "Mozilla Services Repo",
         baseurl     => 'http://people.mozilla.com/~vng/vagrant_mrepo/moz/$releasever/$basearch',
         enabled     => 1,
@@ -173,14 +211,112 @@ yumrepo {
         baseurl     => 'http://people.mozilla.com/~vng/vagrant_mrepo/sentry',
         enabled     => 1,
         gpgcheck    => 0;
+    'cdh3_repo':
+        descr       => "Cloudera 3 Hadoop Repo",
+        baseurl     => 'http://people.mozilla.com/~vng/vagrant_mrepo/cdh3/6',
+        enabled     => 1,
+        gpgcheck    => 0;
 }
 
 
-# Make sure not to install the yum repo until its completely ready
+# Make sure not to install the yum repo until createrepo is ready
 Package["createrepo"] -> 
 Yumrepo['sentry_repo'] ->
-Yumrepo['moz_rpms'] ->
+Yumrepo['moz_repo'] ->
+Yumrepo['cdh3_repo'] ->
 Yumrepo['epel6_rpms']
+
+
+file {
+    # Setup Hive example data
+    "/tmp/setup_hive_example.sh":
+        ensure => present,
+        path   => "/tmp/setup_hive_example.sh",
+        source => "/vagrant/files/hadoop/hive/setup_hive_example.sh",
+        owner  => "root",
+        group  => "root",
+        mode   => 775;
+    #
+    # Hadoop HDFS liveliness script
+    "/tmp/test_hdfs_liveliness.sh":
+        ensure => present,
+        path   => "/tmp/test_hdfs_liveliness.sh",
+        source => "/vagrant/files/hadoop/test_hdfs_liveliness.sh",
+        owner  => "root",
+        group  => "root",
+        mode   => 775;
+    
+    # Hadoop startup script
+    "/tmp/start_hadoop.sh":
+        require => [Package["hadoop-hive"], Package["hadoop-hbase"], Package["hadoop-hive-server"]],
+        ensure => present,
+        path   => "/tmp/start_hadoop.sh",
+        source => "/vagrant/files/hadoop/start_hadoop.sh",
+        owner  => "root",
+        group  => "root",
+        mode   => 775;
+
+    # MySQLd startup script
+    "/tmp/start_mysqld.sh":
+        require => [Package["mysql-server"], Package["mysql"]],
+        ensure => present,
+        path   => "/tmp/start_mysqld.sh",
+        source => "/vagrant/files/mysql/start_mysqld.sh",
+        owner  => "root",
+        group  => "root",
+        mode   => 775;
+    
+    # MySQL security modification script
+    "/tmp/init_mysqldb.sql":
+        require => [Exec["start_mysqld"]],
+        ensure => present,
+        path   => "/tmp/init_mysqldb.sql", 
+        source => "/vagrant/files/mysql/init_mysqldb.sql",
+        owner  => "root",
+        group  => "root",
+        mode   => 775;
+
+}
+
+# Apache Hive specific mysql configuration
+#
+file {
+    "/etc/hadoop-0.20/conf/mapred-site.xml":
+        require => [Package["hadoop-0.20-conf-pseudo"]],
+        ensure => present,
+        path   => "/etc/hadoop-0.20/conf/mapred-site.xml",
+        source => "/vagrant/files/hadoop/mapred-site.xml", 
+        owner  => "root",
+        group  => "root",
+        mode   => 775;
+
+    "/tmp/init_hive.sql":
+        require => [Package["mysql"], Package["mysql-server"]],
+        ensure => present,
+        path   => "/tmp/init_hive.sql",
+        source => "/vagrant/files/hadoop/hive/init_hive.sql", 
+        owner  => "root",
+        group  => "root",
+        mode   => 775;
+
+}
+
+
+####
+# MySQL connector installation
+file  {
+    "/tmp/mysql-jdbc-connector-install.sh":
+        require => [Package["mysql"],
+                Package["mysql-server"],
+                Package["hadoop-hive"],
+                Package["hadoop-hive-server"]],
+        ensure => present,
+        path   => "/tmp/mysql-jdbc-connector-install.sh",
+        source => "/vagrant/files/hadoop/mysql-jdbc-connector-install.sh",
+        owner  => "root",
+        group  => "root",
+        mode   => 775;
+}
 
 ###
 # Sentry setup
@@ -419,6 +555,24 @@ file {
         force   => true;
 }
 
+# Sample HDFS data 
+file {
+    '/var/log/aitc':
+        ensure => "directory",
+        owner  => "root",
+        group  => "root",
+        mode   => 775;
+
+    '/var/log/aitc/metrics_hdfs.log':
+        ensure  => present,
+        path    => "/var/log/aitc/metrics_hdfs.log",
+        source  => "/vagrant/files/var/log/aitc/metrics_hdfs.log",
+        owner   => 'root',
+        group   => 'root',
+        mode    => 775,
+        force   => true;
+}
+
 exec {
     'update_init':
         command => "/sbin/initctl reload-configuration",
@@ -439,7 +593,37 @@ exec {
     'start_sentry':
         command     => "/sbin/initctl start sentry",
         unless      => "/sbin/initctl status sentry | grep -w running",
-        require     => [File["/etc/init/sentry.conf"], Package['python26-sentry']];
+        require     => [File["/etc/init/sentry.conf"], Package['python26-sentry'],
+
+    # This is crazy.  The sentry RPM needs to be rebuilt to properly
+    # specify RPM dependencies
+        Package["Django"], 
+        Package["python26-amqplib"], 
+        Package["python26-anyjson"], 
+        Package["python26-beautifulsoup"], 
+        Package["python26-celery"], 
+        Package["python26-cssutils"], 
+        Package["python26-dateutil"], 
+        Package["python26-django-celery"], 
+        Package["python26-django-crispy-forms"], 
+        Package["python26-django-indexer"], 
+        Package["python26-django-paging"], 
+        Package["python26-django-picklefield"], 
+        Package["python26-django-templatetag-sugar"], 
+        Package["python26-gunicorn"], 
+        Package["python26-httpagentparser"], 
+        Package["python26-importlib"], 
+        Package["python26-kombu"], 
+        Package["python26-logan"], 
+        Package["python26-ordereddict"], 
+        Package["python26-pynliner"], 
+        Package["python26-pytz"], 
+        Package["python26-raven"], 
+        Package["python26-simplejson"], 
+        Package["python26-south"], 
+
+
+];
 
     'statsd_up':
         command     => "/sbin/service statsd start",
@@ -457,23 +641,65 @@ exec {
     'restart_apache':
         command     => "/sbin/service httpd restart",
         require     => [File["/etc/httpd/conf.d/wsgi.conf"], File["/opt/graphite/conf/graphite.wsgi"], Exec["iptables_down"]];
+
+    'install_mysql_jdbc_connector':
+        command     => "/tmp/mysql-jdbc-connector-install.sh",
+        require     => [File["/tmp/mysql-jdbc-connector-install.sh"]],
+        onlyif      => "test ! -f /usr/lib/hive//lib/mysql-connector-java-5.1.15-bin.jar";
+
+    'restart_hadoop':
+        command     => "sh /tmp/start_hadoop.sh",
+        require     => [File["/tmp/start_hadoop.sh"], File["/etc/hadoop-0.20/conf/mapred-site.xml"], Exec["install_mysql_jdbc_connector"]];
+
+    'start_mysqld':
+        command     => "/tmp/start_mysqld.sh",
+        require     => [File["/tmp/start_mysqld.sh"]];
+
+    'init_mysqld':
+        command     => "cat /tmp/init_mysqldb.sql | mysql -u root",
+        require     => [Exec["start_mysqld"], File["/tmp/init_mysqldb.sql"]],
+        unless      => "/usr/bin/mysql --user=mydbadmin --password=mypass -e \"show databases\"";
+
+    'init_hive':
+        require     => [File["/tmp/init_hive.sql"], Exec["init_mysqld"]],
+        command     => "cat /tmp/init_hive.sql | mysql --user=mydbadmin --password=mypass;",
+        unless => "/usr/bin/mysql --user=mydbadmin --password=mypass -e \"use metastore;\"";
+
+    'install_metlog_hive':
+        require     => [Package['metlog-hive'], Exec["init_hive"], File['/tmp/test_hdfs_liveliness.sh']],
+        command     => "sh /tmp/test_hdfs_liveliness.sh; sudo -u vagrant /usr/bin/hadoop dfs -mkdir /metlog/lib/; sudo -u vagrant /usr/bin/hadoop dfs -put /opt/metlog/hadoop/hive/MetlogHive.jar /metlog/lib/MetlogHive.jar",
+        unless => "/usr/bin/hadoop dfs -ls /metlog/lib/MetlogHive.jar";
+
+    'setup_hive_example':
+        require     => [Package["hadoop-hive-server"], Exec["install_metlog_hive"], File['/tmp/setup_hive_example.sh'], Exec["restart_hadoop"]],
+        command     => "sh /tmp/test_hdfs_liveliness.sh; chmod -R 777 /var/lib/hive; sh /tmp/setup_hive_example.sh",
+        unless => "sudo -u vagrant /usr/bin/hadoop dfs -ls /var/log/aitc/metrics_hdfs.log";
+
 }
 
 
 Package["zeromq"] ->
 Package["logstash"] ->
-Package["logstash-metlog"] ->
+Package["logstash-metlog"]
+
+File["/etc/logstash.conf"] ->
+File["/etc/init/logstash.conf"] ->
+Exec["start_logstash"]
+
 File["/etc/httpd/conf.d/wsgi.conf"] ->
 File["/opt/graphite/conf/carbon.conf"] ->
 File["/opt/graphite/conf/graphite.wsgi"] ->
-File["/etc/logstash.conf"] ->
-File["/etc/init/logstash.conf"] ->
 File["/etc/init.d/statsd"] ->
 File["/etc/init/carbon.conf"] ->
-Exec["start_logstash"] ->
 Exec["init_whisperdb"] ->
+File["/etc/init/pencil.conf"] ->
+Exec["start_pencil"]
+
 Exec["iptables_down"] ->
 Exec["restart_apache"] ->
-File["/etc/init/pencil.conf"] ->
-Exec["start_pencil"] ->
 Exec["start_sentry"]
+
+Exec["init_hive"] ->
+Exec["restart_hadoop"] ->
+Exec["install_metlog_hive"]
+

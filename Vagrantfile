@@ -6,4 +6,5 @@ Vagrant::Config.run do |config|
     puppet.manifest_file  = "default.pp"
     puppet.module_path   = "modules"
   end
+  config.vm.customize ["modifyvm", :id, "--memory", 2048] 
 end
