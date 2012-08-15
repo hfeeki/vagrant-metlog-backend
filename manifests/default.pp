@@ -662,7 +662,7 @@ exec {
 
     'init_hive':
         require     => [File["/tmp/init_hive.sql"], Exec["init_mysqld"]],
-        command     => "cat /tmp/init_hive.sql | mysql --user=mydbadmin --password=mypass; chmod -R 777 /var/lib/hive/metastore",
+        command     => "cat /tmp/init_hive.sql | mysql --user=mydbadmin --password=mypass;",
         unless => "/usr/bin/mysql --user=mydbadmin --password=mypass -e \"use metastore;\"";
 
     'install_metlog_hive':
@@ -672,7 +672,7 @@ exec {
 
     'setup_hive_example':
         require     => [Package["hadoop-hive-server"], Exec["install_metlog_hive"], File['/tmp/setup_hive_example.sh'], Exec["restart_hadoop"]],
-        command     => "sh /tmp/test_hdfs_liveliness.sh; sh /tmp/setup_hive_example.sh",
+        command     => "sh /tmp/test_hdfs_liveliness.sh; chmod -R 777 /var/lib/hive/metastore; sh /tmp/setup_hive_example.sh",
         unless => "/usr/bin/hadoop dfs -ls /var/log/aitc/metrics_hdfs.log";
 
 }
