@@ -667,13 +667,13 @@ exec {
 
     'install_metlog_hive':
         require     => [Package['metlog-hive'], Exec["init_hive"], File['/tmp/test_hdfs_liveliness.sh']],
-        command     => "sh /tmp/test_hdfs_liveliness.sh; /usr/bin/hadoop dfs -mkdir /metlog/lib/; /usr/bin/hadoop dfs -put /opt/metlog/hadoop/hive/MetlogHive.jar /metlog/lib/MetlogHive.jar",
+        command     => "sh /tmp/test_hdfs_liveliness.sh; sudo -u vagrant /usr/bin/hadoop dfs -mkdir /metlog/lib/; sudo -u vagrant /usr/bin/hadoop dfs -put /opt/metlog/hadoop/hive/MetlogHive.jar /metlog/lib/MetlogHive.jar",
         unless => "/usr/bin/hadoop dfs -ls /metlog/lib/MetlogHive.jar";
 
     'setup_hive_example':
         require     => [Package["hadoop-hive-server"], Exec["install_metlog_hive"], File['/tmp/setup_hive_example.sh'], Exec["restart_hadoop"]],
-        command     => "sh /tmp/test_hdfs_liveliness.sh; chmod -R 777 /var/lib/hive/metastore; sh /tmp/setup_hive_example.sh",
-        unless => "/usr/bin/hadoop dfs -ls /var/log/aitc/metrics_hdfs.log";
+        command     => "sh /tmp/test_hdfs_liveliness.sh; chmod -R 777 /var/lib/hive; sh /tmp/setup_hive_example.sh",
+        unless => "sudo -u vagrant /usr/bin/hadoop dfs -ls /var/log/aitc/metrics_hdfs.log";
 
 }
 
