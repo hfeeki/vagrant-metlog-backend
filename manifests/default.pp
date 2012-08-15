@@ -154,7 +154,7 @@ package {
 
     $metlog_hive_packages:
         ensure  => present,
-        require => [Package[$cdh3_packages], Yumrepo['moz_repo']];
+        require => [File['/tmp/test_hdfs_liveliness.sh'], Package[$cdh3_packages], Yumrepo['moz_repo']];
 
     # Mysql is needed by Apache Hive to back the metadata storage
     $mysql_packages:
@@ -228,6 +228,24 @@ Yumrepo['epel6_rpms']
 
 
 file {
+    # Setup Hive example data
+    "/tmp/setup_hive_example.sh":
+        ensure => present,
+        path   => "/tmp/setup_hive_example.sh",
+        source => "/vagrant/files/hadoop/hive/setup_hive_example.sh",
+        owner  => "root",
+        group  => "root",
+        mode   => 775;
+    #
+    # Hadoop HDFS liveliness script
+    "/tmp/test_hdfs_liveliness.sh":
+        ensure => present,
+        path   => "/tmp/test_hdfs_liveliness.sh",
+        source => "/vagrant/files/hadoop/test_hdfs_liveliness.sh",
+        owner  => "root",
+        group  => "root",
+        mode   => 775;
+    
     # Hadoop startup script
     "/tmp/start_hadoop.sh":
         require => [Package["hadoop-hive"], Package["hadoop-hbase"], Package["hadoop-hive-server"]],
@@ -630,9 +648,8 @@ exec {
         onlyif      => "test ! -f /usr/lib/hive//lib/mysql-connector-java-5.1.15-bin.jar";
 
     'restart_hadoop':
-        command     => "/tmp/start_hadoop.sh",
-        require     => [File["/tmp/start_hadoop.sh"], File["/etc/hadoop-0.20/conf/mapred-site.xml"]],
-        onlyif      => "test -f /usr/lib/hive//lib/mysql-connector-java-5.1.15-bin.jar";
+        command     => "sh /tmp/start_hadoop.sh",
+        require     => [File["/tmp/start_hadoop.sh"], File["/etc/hadoop-0.20/conf/mapred-site.xml"], Exec["install_mysql_jdbc_connector"]];
 
     'start_mysqld':
         command     => "/tmp/start_mysqld.sh",
@@ -645,14 +662,18 @@ exec {
 
     'init_hive':
         require     => [File["/tmp/init_hive.sql"], Exec["init_mysqld"]],
-        command     => "cat /tmp/init_hive.sql | mysql --user=mydbadmin --password=mypass; chmod 777 /var/lib/hive/metastore",
+        command     => "cat /tmp/init_hive.sql | mysql --user=mydbadmin --password=mypass; chmod -R 777 /var/lib/hive/metastore",
         unless => "/usr/bin/mysql --user=mydbadmin --password=mypass -e \"use metastore;\"";
 
     'install_metlog_hive':
-        require     => [Package['metlog-hive'], Exec["init_hive"]],
-        command     => "/bin/sleep 5; /usr/bin/hadoop dfs -mkdir /metlog/lib/; /usr/bin/hadoop dfs -put /opt/metlog/hadoop/hive/MetlogHive.jar /metlog/lib/MetlogHive.jar",
+        require     => [Package['metlog-hive'], Exec["init_hive"], File['/tmp/test_hdfs_liveliness.sh']],
+        command     => "sh /tmp/test_hdfs_liveliness.sh; /usr/bin/hadoop dfs -mkdir /metlog/lib/; /usr/bin/hadoop dfs -put /opt/metlog/hadoop/hive/MetlogHive.jar /metlog/lib/MetlogHive.jar",
         unless => "/usr/bin/hadoop dfs -ls /metlog/lib/MetlogHive.jar";
 
+    'setup_hive_example':
+        require     => [Package["hadoop-hive-server"], Exec["install_metlog_hive"], File['/tmp/setup_hive_example.sh'], Exec["restart_hadoop"]],
+        command     => "sh /tmp/test_hdfs_liveliness.sh; sh /tmp/setup_hive_example.sh",
+        unless => "/usr/bin/hadoop dfs -ls /var/log/aitc/metrics_hdfs.log";
 
 }
 
