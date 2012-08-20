@@ -660,6 +660,9 @@ exec {
         command     => "sh /tmp/start_hadoop.sh",
         require     => [File["/tmp/start_hadoop.sh"], File["/etc/hadoop-0.20/conf/mapred-site.xml"], Exec["install_mysql_jdbc_connector"]];
 
+    'start_hue':
+        command     => "sh /etc/init.d/hue start";
+
     'start_mysqld':
         command     => "/tmp/start_mysqld.sh",
         require     => [File["/tmp/start_mysqld.sh"]];
@@ -714,5 +717,6 @@ Exec["install_metlog_hive"]
 
 File["/etc/hive/conf/hive-site.xml"] ->
 Exec["restart_hadoop"] ->
-Exec['setup_hive_example']
+Exec['setup_hive_example'] ->
+Exec['start_hue']
 
