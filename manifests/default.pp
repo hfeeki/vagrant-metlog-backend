@@ -281,6 +281,15 @@ file {
 # Apache Hive specific mysql configuration
 #
 file {
+    "/etc/hive/conf/hive-site.xml":
+        require => [Package["hadoop-hive"]],
+        ensure => present,
+        path   => "/etc/hive/conf/hive-site.xml",
+        source => "/vagrant/files/hadoop/hive/hive-site.xml",
+        owner  => "root",
+        group  => "root",
+        mode   => 644;
+
     "/etc/hadoop-0.20/conf/mapred-site.xml":
         require => [Package["hadoop-0.20-conf-pseudo"]],
         ensure => present,
@@ -645,11 +654,14 @@ exec {
     'install_mysql_jdbc_connector':
         command     => "/tmp/mysql-jdbc-connector-install.sh",
         require     => [File["/tmp/mysql-jdbc-connector-install.sh"]],
-        onlyif      => "test ! -f /usr/lib/hive//lib/mysql-connector-java-5.1.15-bin.jar";
+        onlyif      => "test ! -f /usr/lib/hive/lib/mysql-connector-java-5.1.15-bin.jar";
 
     'restart_hadoop':
         command     => "sh /tmp/start_hadoop.sh",
         require     => [File["/tmp/start_hadoop.sh"], File["/etc/hadoop-0.20/conf/mapred-site.xml"], Exec["install_mysql_jdbc_connector"]];
+
+    'start_hue':
+        command     => "sh /etc/init.d/hue start";
 
     'start_mysqld':
         command     => "/tmp/start_mysqld.sh",
@@ -702,4 +714,9 @@ Exec["start_sentry"]
 Exec["init_hive"] ->
 Exec["restart_hadoop"] ->
 Exec["install_metlog_hive"]
+
+File["/etc/hive/conf/hive-site.xml"] ->
+Exec["restart_hadoop"] ->
+Exec['setup_hive_example'] ->
+Exec['start_hue']
 
